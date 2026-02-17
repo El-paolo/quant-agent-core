@@ -1,0 +1,72 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+*.pyo
+*.pyd
+*.py[cod]
+
+
+# =========================
+# Virtual environments
+# =========================
+.venv
+
+
+# =========================
+# uv
+# =========================
+.uv/
+uv.lock
+
+# =========================
+# OS / Editor
+# =========================
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# =========================
+# Testing / Coverage
+# =========================
+.pytest_cache/
+.coverage
+htmlcov/
+
+# =========================
+# Logs
+# =========================
+logs/
+*.log
+
+# =========================
+# Data (CRÍTICO)
+# =========================
+data/private/
+data/raw/
+data/interim/
+data/processed/
+
+# ======================
+# Secrets / Config
+# ======================
+.env
+.env.*
+secrets.yaml
+secrets.yml
+
+# =========================
+# Notebooks
+# =========================
+.ipynb_checkpoints/
+
+# =========================
+# Build / Distribution
+# =========================
+build/
+dist/
+*.egg-info/
