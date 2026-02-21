@@ -65,6 +65,9 @@ uv add <package-name>
 - Build reusable analysis modules
 - Export insights to reports or dashboards
 
+## Notes
+This software assumes the ingested data is adjusted unless it is explicitly told.
+
 ## License
 
 all rights reserved.
