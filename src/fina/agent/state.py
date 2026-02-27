@@ -12,12 +12,12 @@ class AgentState:
     ################
     raw_inputs: List[str]
     raw_news: List[dict]
-    time_series_data: Dict[str, List[float]] = field(default_factory=dict)
+    time_series_data: Dict[str, List[float]] = field(default_factory=lambda: {})
     ################
     #PROCESSED DATA
     ################
-    cleaned_series: Dict[str, Any] = field(default_factory=dict)
-    relevant_news: List[dict] = field(default_factory=list)
+    cleaned_series: Dict[str, List[float]] = field(default_factory=lambda: {})
+    relevant_news: List[Dict[str, Any]] = field(default_factory=list)
     ################
     #METRICS
     ################
@@ -28,6 +28,5 @@ class AgentState:
     #NLP
     ################
     report_summary: str | None = None
-    sentiment_score: float
     
     

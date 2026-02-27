@@ -18,8 +18,7 @@ def validate_prices(prices: pd.Series) -> pd.Series:
     - Must not have null values
 
     """
-    if not isinstance(prices, pd.Series):
-        raise ReturnsError("Input must be a pandas Series.")
+    # The input is already expected to be a pandas Series due to the type hint.
     if len(prices) < 2:
         raise ReturnsError("At least two price points are required to calculate returns.")
     if (prices <= 0).any():
