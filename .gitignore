@@ -70,3 +70,8 @@ secrets.yml
 build/
 dist/
 *.egg-info/
+
+# =========================
+# Develop testing
+# =========================
+notebooks/
