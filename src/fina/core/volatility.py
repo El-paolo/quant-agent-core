@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from scipy.stats import norm
 from fina.core.returns import compute_returns
 
 class VolatilityError(Exception):
@@ -15,7 +16,7 @@ def validate_returns(returns: pd.Series | pd.DataFrame) -> pd.Series:
         raise VolatilityError("Input returns must be a pandas Series or single-column DataFrame.")
     return returns.sort_index()
 
-def compute_realized_volatility(
+def realized_volatility(
         returns: pd.Series,
         window: int | None = None,
         annualize: bool = True,
