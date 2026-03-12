@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 
-
 class ReturnsError(Exception):
     """Custom exception for errors in returns calculations."""
     pass

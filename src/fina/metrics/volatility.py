@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from scipy.stats import norm
-from fina.core.returns import compute_returns
+from fina.metrics.returns import compute_returns
 
 class VolatilityError(Exception):
     """Custom exception for errors in volatility calculations."""
@@ -14,19 +14,18 @@ def validate_returns(returns: pd.Series | pd.DataFrame) -> pd.Series:
         returns = returns.iloc[:, 0]
     elif not isinstance(returns, pd.Series):
         raise VolatilityError("Input returns must be a pandas Series or single-column DataFrame.")
-    return returns.sort_index()
-
+    
+    result: pd.Series = returns.sort_index()
+    
+    return result
 def realized_volatility(
         returns: pd.Series,
-        window: int | None = None,
         annualize: bool = True,
         trading_days: int = 252) -> dict:
     """Calculate realized by default volatility from a series of returns."""
 
-    if window is None:
-        vol = returns.std()
-    else:
-        vol = returns.rolling(window=window).std()
+    vol = returns.std()
+
     if annualize:
         vol *= np.sqrt(trading_days)
     return {
@@ -36,3 +35,31 @@ def realized_volatility(
         'trading_days': trading_days if annualize else None,
         'observations': len(returns)
     }
+
+def rolling_volatility(
+        returns: pd.Series,
+        window: int ,
+        annualize: bool = True,
+        trading_days: int = 252) -> pd.DataFrame:
+    
+    """Calculate rolling realized volatility - returns a pd.Dataframe with the full time series"""
+    returns = validate_returns(returns)
+    if window >= len(returns):
+        raise VolatilityError(
+            f"Window must be smaller than the number of observations({len(returns)})."
+        )
+    vol = returns.rolling(window=window).std()
+    if annualize:
+        vol *= np.sqrt(trading_days)
+
+    result = pd.DataFrame({
+        'volatility': vol,
+        'volatilty(variance)':vol ** 2
+    })
+
+    result.attrs = {
+        'window': window,
+        'annualized': annualize,
+        'trading_days': trading_days if annualize else None
+    }
+    return result
