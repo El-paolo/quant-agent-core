@@ -12,3 +12,10 @@ dependencies = [
     "scipy>=1.17.1",
     "yfinance>=1.2.0",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+    "pytest-httpx>=0.36.0",
+]
