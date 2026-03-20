@@ -6,11 +6,13 @@ The factory pattern allows injecting a custom Settings object,
 making the app fully testable without touching env variables.
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from fina.api.middleware import RequestTimingMiddleware
 from fina.core.config import Settings, get_settings
+from fina.core.exceptions import ConfigError
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -35,6 +37,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         redoc_url="/redoc",
     )
 
+    # --- Exception handlers ---
+    @app.exception_handler(ConfigError)
+    async def config_error_handler(request: Request, exc: ConfigError) -> JSONResponse:
+        return JSONResponse(status_code=503, content={"detail": str(exc)})
+
     # --- Middleware (order matters: last added = outermost) ---
     app.add_middleware(
         CORSMiddleware,
@@ -48,9 +55,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # --- Routes (imported inside factory to avoid circular imports) ---
     from fina.api.routes.health import router as health_router
     from fina.api.routes.analysis import router as analysis_router
+    from fina.api.routes.agent import router as agent_router
 
     app.include_router(health_router)
     app.include_router(analysis_router, prefix="/analysis")
+    app.include_router(agent_router, prefix="/agent")
 
     return app
 
