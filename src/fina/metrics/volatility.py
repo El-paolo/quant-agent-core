@@ -23,7 +23,7 @@ def realized_volatility(
         annualize: bool = True,
         trading_days: int = 252) -> dict:
     """Calculate realized by default volatility from a series of returns."""
-
+    returns = validate_returns(returns)
     vol = returns.std()
 
     if annualize:
@@ -53,8 +53,8 @@ def rolling_volatility(
         vol *= np.sqrt(trading_days)
 
     result = pd.DataFrame({
-        'volatility': vol,
-        'volatilty(variance)':vol ** 2
+        'volatility(s.d.)': vol,
+        'volatility(variance)': vol ** 2
     })
 
     result.attrs = {
