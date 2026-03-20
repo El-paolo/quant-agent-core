@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     # --- LLM provider ---
     llm_provider: str = "ollama"
     ollama_base_url: str = "http://localhost:11434"
-    ollama_model: str = "qwen2.5-coder:latest"
+    ollama_model: str = "llama3.2:3b"
 
     # --- External API keys (only required for their respective providers) ---
     anthropic_api_key: str = ""

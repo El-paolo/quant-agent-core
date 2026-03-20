@@ -3,9 +3,10 @@ import numpy as np
 from scipy.stats import norm
 from fina.metrics.returns import compute_returns
 
-class VolatilityError(Exception):
-    """Custom exception for errors in volatility calculations."""
-    pass
+from fina.core.exceptions import MetricsError
+
+# Alias kept for backwards compatibility with any existing callers
+VolatilityError = MetricsError
 def validate_returns(returns: pd.Series | pd.DataFrame) -> pd.Series:
     """Validate input returns series for volatility calculations."""
     if isinstance(returns, pd.DataFrame):

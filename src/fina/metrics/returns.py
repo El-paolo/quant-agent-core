@@ -1,9 +1,10 @@
 import pandas as pd
 import numpy as np
 
-class ReturnsError(Exception):
-    """Custom exception for errors in returns calculations."""
-    pass
+from fina.core.exceptions import MetricsError
+
+# Alias kept for backwards compatibility with any existing callers
+ReturnsError = MetricsError
 
 def validate_prices(prices: pd.Series | pd.DataFrame) -> pd.Series:
     """
