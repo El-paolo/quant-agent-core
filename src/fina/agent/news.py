@@ -16,7 +16,7 @@ import httpx
 from fina.core.config import Settings
 from fina.core.exceptions import FetcherError
 
-_NEWSAPI_BASE = "https://newsapi.org/v2/everything"
+_NEWSAPI_BASE = "https://newsapi.org/v2/top-headlines"
 _MAX_ARTICLES_CAP = 100   # NewsAPI hard limit per page
 _DEFAULT_MAX = 10
 
