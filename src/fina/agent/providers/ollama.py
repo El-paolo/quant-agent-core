@@ -16,7 +16,7 @@ from fina.core.exceptions import FetcherError
 
 _DEFAULT_TIMEOUT = 60.0  # seconds — local models can be slow on first token
 _MAX_TOKENS = 512
-
+_DEFAULT_BASE_URL = "http://localhost:11434"
 
 class OllamaProvider:
     """
@@ -30,7 +30,7 @@ class OllamaProvider:
 
     def __init__(
         self,
-        base_url: str = "http://localhost:11434",
+        base_url: str = _DEFAULT_BASE_URL,
         model: str = "llama3.2:3b",
         timeout: float = _DEFAULT_TIMEOUT,
     ) -> None:
