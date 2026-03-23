@@ -10,6 +10,15 @@ import pandas as pd
 import pytest
 
 from fina.metrics.returns import simple_returns
+from fina.data.fetcher import configure_price_cache
+from fina.agent.news import configure_news_cache
+
+
+@pytest.fixture(autouse=True)
+def reset_caches() -> None:
+    """Reset all module-level caches before every test for isolation."""
+    configure_price_cache()
+    configure_news_cache()
 
 
 @pytest.fixture

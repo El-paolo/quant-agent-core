@@ -12,7 +12,7 @@ from fina.core.exceptions import ConfigError
 
 class TestSettings:
     def test_default_keys_are_empty(self) -> None:
-        s = Settings()
+        s = Settings(_env_file=None)
         assert s.anthropic_api_key == ""
         assert s.news_api_key == ""
 

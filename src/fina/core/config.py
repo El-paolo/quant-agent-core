@@ -44,6 +44,11 @@ class Settings(BaseSettings):
     anthropic_model: str = "claude-sonnet-4-6"
     news_api_key: str = ""
 
+    # --- Cache settings ---
+    cache_prices_ttl_seconds: int = 300   # 5 min — precios durante horario de mercado
+    cache_news_ttl_seconds: int = 900     # 15 min — noticias cambian más lento
+    cache_max_size: int = 128             # entradas máximas por cache
+
     # --- App settings ---
     log_level: str = "INFO"
     cors_origins: list[str] = ["*"]

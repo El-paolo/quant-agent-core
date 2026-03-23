@@ -11,7 +11,11 @@ Security notes:
   - max_articles is bounded to prevent oversized responses.
 """
 
+import threading
+
 import httpx
+from cachetools import TTLCache
+from cachetools.keys import hashkey
 
 from fina.core.config import Settings
 from fina.core.exceptions import FetcherError
@@ -19,6 +23,28 @@ from fina.core.exceptions import FetcherError
 _NEWSAPI_BASE = "https://newsapi.org/v2/top-headlines"
 _MAX_ARTICLES_CAP = 100   # NewsAPI hard limit per page
 _DEFAULT_MAX = 10
+
+# ---------------------------------------------------------------------------
+# Cache — evita llamadas repetidas a NewsAPI para la misma query.
+# TTL default 15 min; configurable via configure_news_cache() en app startup.
+# ---------------------------------------------------------------------------
+_news_cache: TTLCache = TTLCache(maxsize=128, ttl=900)
+_news_cache_lock = threading.Lock()
+
+
+def configure_news_cache(ttl: int = 900, maxsize: int = 128) -> None:
+    """
+    Reconfigure el cache de noticias.
+
+    Llamar una vez en el startup de la app (create_app) con valores de Settings.
+
+    Args:
+        ttl:     Time-to-live en segundos. Default: 900 (15 min).
+        maxsize: Máximo de entradas en cache. Default: 128.
+    """
+    global _news_cache
+    with _news_cache_lock:
+        _news_cache = TTLCache(maxsize=maxsize, ttl=ttl)
 
 
 def fetch_news_headlines(
@@ -47,6 +73,12 @@ def fetch_news_headlines(
     settings.validate_for_agent()
 
     page_size = min(max_articles, _MAX_ARTICLES_CAP)
+
+    # --- Cache lookup ---
+    cache_key = hashkey(query, page_size)
+    with _news_cache_lock:
+        if cache_key in _news_cache:
+            return _news_cache[cache_key]  # type: ignore[return-value]
 
     params = {
         "q": query,
@@ -78,7 +110,7 @@ def fetch_news_headlines(
 
     articles = data.get("articles", [])[:max_articles]
 
-    return [
+    result = [
         {
             "title": a.get("title", ""),
             "description": a.get("description", "") or "",
@@ -88,3 +120,9 @@ def fetch_news_headlines(
         for a in articles
         if a.get("title")  # skip articles with no title
     ]
+
+    # --- Store in cache ---
+    with _news_cache_lock:
+        _news_cache[cache_key] = result
+
+    return result

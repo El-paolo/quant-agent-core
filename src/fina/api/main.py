@@ -30,6 +30,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     if settings is None:
         settings = get_settings()
 
+    # --- Configure caches with settings values ---
+    from fina.data.fetcher import configure_price_cache
+    from fina.agent.news import configure_news_cache
+
+    configure_price_cache(
+        ttl=settings.cache_prices_ttl_seconds,
+        maxsize=settings.cache_max_size,
+    )
+    configure_news_cache(
+        ttl=settings.cache_news_ttl_seconds,
+        maxsize=settings.cache_max_size,
+    )
+
     app = FastAPI(
         title="FINA Financial Analysis API",
         version="0.1.0",

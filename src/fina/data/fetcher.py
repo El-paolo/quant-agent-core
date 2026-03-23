@@ -15,12 +15,39 @@ Security notes:
 """
 
 import re
+import threading
 from datetime import date, datetime
 
 import pandas as pd
 import yfinance as yf
+from cachetools import TTLCache
+from cachetools.keys import hashkey
 
 from fina.core.exceptions import FetcherError
+
+# ---------------------------------------------------------------------------
+# Cache — avoids redundant yfinance network calls for the same ticker/period.
+# Thread-safe via _price_cache_lock (FastAPI runs sync fetchers in threadpool).
+# Call configure_price_cache() once at app startup to apply Settings values.
+# ---------------------------------------------------------------------------
+_price_cache: TTLCache = TTLCache(maxsize=128, ttl=300)
+_price_cache_lock = threading.Lock()
+
+
+def configure_price_cache(ttl: int = 300, maxsize: int = 128) -> None:
+    """
+    Reconfigure the price cache TTL and size.
+
+    Call once at app startup (e.g. from create_app) with values from Settings.
+    Safe to call multiple times — replaces the existing cache.
+
+    Args:
+        ttl:     Time-to-live in seconds. Default: 300 (5 min).
+        maxsize: Maximum number of cached entries. Default: 128.
+    """
+    global _price_cache
+    with _price_cache_lock:
+        _price_cache = TTLCache(maxsize=maxsize, ttl=ttl)
 
 # ---------------------------------------------------------------------------
 # Security: strict allowlist for ticker symbols.
@@ -150,6 +177,12 @@ def fetch_close_prices(
     start_str = _parse_date(start, "start")
     end_str = _parse_date(end, "end")
 
+    # --- Cache lookup (after validation so key is always canonical) ---
+    cache_key = hashkey(clean_ticker, start_str, end_str, period or "1y")
+    with _price_cache_lock:
+        if cache_key in _price_cache:
+            return _price_cache[cache_key]  # type: ignore[return-value]
+
     # Validate period if provided
     _VALID_PERIODS = {
         "1d", "5d", "1mo", "3mo", "6mo",
@@ -209,5 +242,9 @@ def fetch_close_prices(
 
     # Drop any trailing NaNs from yfinance padding
     prices = prices.dropna()
+
+    # --- Store in cache ---
+    with _price_cache_lock:
+        _price_cache[cache_key] = prices
 
     return prices
