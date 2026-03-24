@@ -1,31 +1,30 @@
 """
-NewsAPI fetcher — retrieves recent headlines for a given query.
+Yahoo Finance news fetcher — retrieves recent headlines for a given ticker.
 
-Uses httpx (synchronous) so it fits naturally in the synchronous
-orchestration pipeline. All HTTP errors are wrapped in FetcherError.
+Uses yfinance (no API key required) so news fetching is free and unlimited.
+All errors are wrapped in FetcherError.
 
 Security notes:
-  - The API key is never logged or included in error messages.
-  - Query strings are passed as URL parameters (httpx handles encoding),
-    never interpolated into URLs directly.
+  - No API keys required or used.
+  - Ticker symbols are passed directly to yfinance, never interpolated into
+    shell commands or SQL queries.
   - max_articles is bounded to prevent oversized responses.
 """
 
 import threading
 
-import httpx
+import yfinance as yf
 from cachetools import TTLCache
 from cachetools.keys import hashkey
 
 from fina.core.config import Settings
 from fina.core.exceptions import FetcherError
 
-_NEWSAPI_BASE = "https://newsapi.org/v2/top-headlines"
-_MAX_ARTICLES_CAP = 100   # NewsAPI hard limit per page
+_MAX_ARTICLES_CAP = 100
 _DEFAULT_MAX = 10
 
 # ---------------------------------------------------------------------------
-# Cache — evita llamadas repetidas a NewsAPI para la misma query.
+# Cache — evita llamadas repetidas a Yahoo Finance para el mismo ticker.
 # TTL default 15 min; configurable via configure_news_cache() en app startup.
 # ---------------------------------------------------------------------------
 _news_cache: TTLCache = TTLCache(maxsize=128, ttl=900)
@@ -54,11 +53,13 @@ def fetch_news_headlines(
     max_articles: int = _DEFAULT_MAX,
 ) -> list[dict]:
     """
-    Fetch recent news headlines for a query via NewsAPI.
+    Fetch recent news headlines for a ticker via Yahoo Finance (yfinance).
+
+    No API key required.
 
     Args:
-        query:        Search query (e.g. ticker symbol or company name).
-        settings:     Application settings — must contain a valid news_api_key.
+        query:        Ticker symbol (e.g. "AAPL").
+        settings:     Application settings (used downstream by the summarizer).
         max_articles: Maximum number of articles to return (capped at 100).
 
     Returns:
@@ -67,58 +68,30 @@ def fetch_news_headlines(
         Articles without a title are silently skipped.
 
     Raises:
-        ConfigError:  If news_api_key is not set (via validate_for_agent).
-        FetcherError: On HTTP errors, timeout, or non-ok NewsAPI status.
+        FetcherError: On any yfinance or network error.
     """
-    settings.validate_for_agent()
-
-    page_size = min(max_articles, _MAX_ARTICLES_CAP)
+    limit = min(max_articles, _MAX_ARTICLES_CAP)
 
     # --- Cache lookup ---
-    cache_key = hashkey(query, page_size)
+    cache_key = hashkey(query, limit)
     with _news_cache_lock:
         if cache_key in _news_cache:
             return _news_cache[cache_key]  # type: ignore[return-value]
 
-    params = {
-        "q": query,
-        "apiKey": settings.news_api_key,
-        "pageSize": page_size,
-        "sortBy": "publishedAt",
-        "language": "en",
-    }
-
     try:
-        with httpx.Client(timeout=10.0) as client:
-            response = client.get(_NEWSAPI_BASE, params=params)
-        response.raise_for_status()
-    except httpx.HTTPStatusError as exc:
-        raise FetcherError(
-            f"NewsAPI HTTP error {exc.response.status_code}: {exc}"
-        ) from exc
-    except httpx.TimeoutException as exc:
-        raise FetcherError(f"NewsAPI request timed out: {exc}") from exc
-    except httpx.RequestError as exc:
-        raise FetcherError(f"NewsAPI request failed: {exc}") from exc
-
-    data = response.json()
-
-    if data.get("status") != "ok":
-        raise FetcherError(
-            f"NewsAPI returned non-ok status: {data.get('message', 'unknown error')}"
-        )
-
-    articles = data.get("articles", [])[:max_articles]
+        raw_articles = yf.Ticker(query).news[:limit]
+    except Exception as exc:
+        raise FetcherError(f"Yahoo Finance news fetch failed: {exc}") from exc
 
     result = [
         {
-            "title": a.get("title", ""),
-            "description": a.get("description", "") or "",
-            "url": a.get("url", "") or "",
-            "publishedAt": a.get("publishedAt", "") or "",
+            "title": (c := a.get("content", {})).get("title", ""),
+            "description": c.get("summary", "") or "",
+            "url": (c.get("canonicalUrl") or {}).get("url", "") or "",
+            "publishedAt": c.get("pubDate", "") or "",
         }
-        for a in articles
-        if a.get("title")  # skip articles with no title
+        for a in raw_articles
+        if (c := a.get("content", {})) and c.get("title")
     ]
 
     # --- Store in cache ---

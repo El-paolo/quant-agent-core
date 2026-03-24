@@ -1,15 +1,16 @@
 """
 Unit tests for fina.agent.news
 
-All HTTP calls are intercepted by pytest-httpx — no real NewsAPI requests made.
+yfinance calls are mocked via unittest.mock — no real network requests made.
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from pytest_httpx import HTTPXMock
 
 from fina.agent.news import fetch_news_headlines
 from fina.core.config import Settings
-from fina.core.exceptions import ConfigError, FetcherError
+from fina.core.exceptions import FetcherError
 
 
 # ---------------------------------------------------------------------------
@@ -17,24 +18,31 @@ from fina.core.exceptions import ConfigError, FetcherError
 # ---------------------------------------------------------------------------
 
 
-def _settings(news_key: str = "test-key") -> Settings:
-    return Settings(llm_provider="ollama", news_api_key=news_key)
+def _settings() -> Settings:
+    return Settings(llm_provider="ollama")
 
 
-def _newsapi_ok(n: int = 3) -> dict:
+def _yf_article(i: int) -> dict:
+    """Simulate a yfinance news article structure."""
     return {
-        "status": "ok",
-        "totalResults": n,
-        "articles": [
-            {
-                "title": f"Headline {i}",
-                "description": f"Description {i}",
-                "url": f"https://example.com/{i}",
-                "publishedAt": f"2025-01-0{i+1}T12:00:00Z",
-            }
-            for i in range(n)
-        ],
+        "id": f"id-{i}",
+        "content": {
+            "title": f"Headline {i}",
+            "summary": f"Description {i}",
+            "pubDate": f"2025-01-0{i + 1}T12:00:00Z",
+            "canonicalUrl": {"url": f"https://example.com/{i}"},
+        },
     }
+
+
+def _yf_articles(n: int = 3) -> list[dict]:
+    return [_yf_article(i) for i in range(n)]
+
+
+def _mock_ticker(articles: list[dict]) -> MagicMock:
+    ticker = MagicMock()
+    ticker.news = articles
+    return ticker
 
 
 # ---------------------------------------------------------------------------
@@ -43,65 +51,65 @@ def _newsapi_ok(n: int = 3) -> dict:
 
 
 class TestFetchNewsHeadlinesHappyPath:
-    def test_returns_list(self, httpx_mock: HTTPXMock) -> None:
-        httpx_mock.add_response(json=_newsapi_ok())
-        result = fetch_news_headlines("AAPL", _settings())
+    def test_returns_list(self) -> None:
+        with patch("fina.agent.news.yf.Ticker", return_value=_mock_ticker(_yf_articles())):
+            result = fetch_news_headlines("AAPL", _settings())
         assert isinstance(result, list)
 
-    def test_each_item_is_dict(self, httpx_mock: HTTPXMock) -> None:
-        httpx_mock.add_response(json=_newsapi_ok())
-        result = fetch_news_headlines("AAPL", _settings())
+    def test_each_item_is_dict(self) -> None:
+        with patch("fina.agent.news.yf.Ticker", return_value=_mock_ticker(_yf_articles())):
+            result = fetch_news_headlines("AAPL", _settings())
         for item in result:
             assert isinstance(item, dict)
 
-    def test_required_keys_present(self, httpx_mock: HTTPXMock) -> None:
-        httpx_mock.add_response(json=_newsapi_ok(1))
-        result = fetch_news_headlines("AAPL", _settings())
+    def test_required_keys_present(self) -> None:
+        with patch("fina.agent.news.yf.Ticker", return_value=_mock_ticker(_yf_articles(1))):
+            result = fetch_news_headlines("AAPL", _settings())
         assert "title" in result[0]
         assert "description" in result[0]
         assert "url" in result[0]
         assert "publishedAt" in result[0]
 
-    def test_correct_number_of_articles(self, httpx_mock: HTTPXMock) -> None:
-        httpx_mock.add_response(json=_newsapi_ok(5))
-        result = fetch_news_headlines("AAPL", _settings(), max_articles=5)
+    def test_correct_number_of_articles(self) -> None:
+        with patch("fina.agent.news.yf.Ticker", return_value=_mock_ticker(_yf_articles(5))):
+            result = fetch_news_headlines("AAPL", _settings(), max_articles=5)
         assert len(result) == 5
 
-    def test_max_articles_respected(self, httpx_mock: HTTPXMock) -> None:
-        httpx_mock.add_response(json=_newsapi_ok(10))
-        result = fetch_news_headlines("AAPL", _settings(), max_articles=3)
+    def test_max_articles_respected(self) -> None:
+        with patch("fina.agent.news.yf.Ticker", return_value=_mock_ticker(_yf_articles(10))):
+            result = fetch_news_headlines("AAPL", _settings(), max_articles=3)
         assert len(result) <= 3
 
-    def test_articles_without_title_skipped(self, httpx_mock: HTTPXMock) -> None:
-        payload = {
-            "status": "ok",
-            "articles": [
-                {"title": "Real headline", "description": "", "url": "", "publishedAt": ""},
-                {"title": None, "description": "no title", "url": "", "publishedAt": ""},
-                {"title": "", "description": "empty title", "url": "", "publishedAt": ""},
-            ],
-        }
-        httpx_mock.add_response(json=payload)
-        result = fetch_news_headlines("AAPL", _settings())
+    def test_articles_without_title_skipped(self) -> None:
+        articles = [
+            {"content": {"title": "Real headline", "summary": "", "pubDate": "", "canonicalUrl": {"url": ""}}},
+            {"content": {"title": None, "summary": "no title", "pubDate": "", "canonicalUrl": None}},
+            {"content": {"title": "", "summary": "empty title", "pubDate": "", "canonicalUrl": None}},
+        ]
+        with patch("fina.agent.news.yf.Ticker", return_value=_mock_ticker(articles)):
+            result = fetch_news_headlines("AAPL", _settings())
         assert len(result) == 1
         assert result[0]["title"] == "Real headline"
 
-    def test_empty_articles_returns_empty_list(self, httpx_mock: HTTPXMock) -> None:
-        httpx_mock.add_response(json={"status": "ok", "articles": []})
-        result = fetch_news_headlines("AAPL", _settings())
+    def test_empty_articles_returns_empty_list(self) -> None:
+        with patch("fina.agent.news.yf.Ticker", return_value=_mock_ticker([])):
+            result = fetch_news_headlines("AAPL", _settings())
         assert result == []
 
-    def test_api_key_sent_in_params(self, httpx_mock: HTTPXMock) -> None:
-        httpx_mock.add_response(json=_newsapi_ok())
-        fetch_news_headlines("AAPL", _settings(news_key="my-secret-key"))
-        request = httpx_mock.get_requests()[0]
-        assert "my-secret-key" in str(request.url)
+    def test_publishedAt_mapped_from_pubDate(self) -> None:
+        with patch("fina.agent.news.yf.Ticker", return_value=_mock_ticker(_yf_articles(1))):
+            result = fetch_news_headlines("AAPL", _settings())
+        assert result[0]["publishedAt"] == "2025-01-01T12:00:00Z"
 
-    def test_query_sent_in_params(self, httpx_mock: HTTPXMock) -> None:
-        httpx_mock.add_response(json=_newsapi_ok())
-        fetch_news_headlines("BTC-USD", _settings())
-        request = httpx_mock.get_requests()[0]
-        assert "BTC" in str(request.url)
+    def test_url_mapped_from_canonicalUrl(self) -> None:
+        with patch("fina.agent.news.yf.Ticker", return_value=_mock_ticker(_yf_articles(1))):
+            result = fetch_news_headlines("AAPL", _settings())
+        assert result[0]["url"] == "https://example.com/0"
+
+    def test_description_mapped_from_summary(self) -> None:
+        with patch("fina.agent.news.yf.Ticker", return_value=_mock_ticker(_yf_articles(1))):
+            result = fetch_news_headlines("AAPL", _settings())
+        assert result[0]["description"] == "Description 0"
 
 
 # ---------------------------------------------------------------------------
@@ -110,34 +118,13 @@ class TestFetchNewsHeadlinesHappyPath:
 
 
 class TestFetchNewsHeadlinesErrors:
-    def test_missing_news_key_raises_config_error(self) -> None:
-        s = _settings(news_key="")
-        with pytest.raises(ConfigError, match="NEWS_API_KEY"):
-            fetch_news_headlines("AAPL", s)
+    def test_yfinance_exception_raises_fetcher_error(self) -> None:
+        with patch("fina.agent.news.yf.Ticker", side_effect=Exception("network error")):
+            with pytest.raises(FetcherError, match="Yahoo Finance"):
+                fetch_news_headlines("AAPL", _settings())
 
-    def test_http_401_raises_fetcher_error(self, httpx_mock: HTTPXMock) -> None:
-        httpx_mock.add_response(status_code=401)
-        with pytest.raises(FetcherError, match="HTTP error"):
-            fetch_news_headlines("AAPL", _settings())
-
-    def test_http_500_raises_fetcher_error(self, httpx_mock: HTTPXMock) -> None:
-        httpx_mock.add_response(status_code=500)
-        with pytest.raises(FetcherError, match="HTTP error"):
-            fetch_news_headlines("AAPL", _settings())
-
-    def test_newsapi_error_status_raises_fetcher_error(self, httpx_mock: HTTPXMock) -> None:
-        httpx_mock.add_response(json={"status": "error", "message": "Invalid API key"})
-        with pytest.raises(FetcherError, match="non-ok status"):
-            fetch_news_headlines("AAPL", _settings())
-
-    def test_network_error_raises_fetcher_error(self, httpx_mock: HTTPXMock) -> None:
-        import httpx as _httpx
-        httpx_mock.add_exception(_httpx.ConnectError("DNS failure"))
-        with pytest.raises(FetcherError):
-            fetch_news_headlines("AAPL", _settings())
-
-    def test_timeout_raises_fetcher_error(self, httpx_mock: HTTPXMock) -> None:
-        import httpx as _httpx
-        httpx_mock.add_exception(_httpx.TimeoutException("timed out"))
-        with pytest.raises(FetcherError, match="timed out"):
-            fetch_news_headlines("AAPL", _settings())
+    def test_missing_canonicalUrl_does_not_crash(self) -> None:
+        articles = [{"content": {"title": "Title", "summary": "", "pubDate": "", "canonicalUrl": None}}]
+        with patch("fina.agent.news.yf.Ticker", return_value=_mock_ticker(articles)):
+            result = fetch_news_headlines("AAPL", _settings())
+        assert result[0]["url"] == ""

@@ -74,10 +74,9 @@ class TestValidateForAgent:
         s = Settings(llm_provider="ollama", news_api_key="news-key")
         s.validate_for_agent()  # should not raise
 
-    def test_ollama_raises_when_news_key_missing(self) -> None:
+    def test_ollama_passes_without_news_key(self) -> None:
         s = Settings(llm_provider="ollama", news_api_key="")
-        with pytest.raises(ConfigError, match="NEWS_API_KEY"):
-            s.validate_for_agent()
+        s.validate_for_agent()  # no error — news uses yfinance, no key needed
 
     def test_ollama_does_not_require_anthropic_key(self) -> None:
         s = Settings(llm_provider="ollama", news_api_key="news-key", anthropic_api_key="")
@@ -98,10 +97,9 @@ class TestValidateForAgent:
         with pytest.raises(ConfigError, match="ANTHROPIC_API_KEY"):
             s.validate_for_agent()
 
-    def test_anthropic_raises_when_news_key_missing(self) -> None:
+    def test_anthropic_passes_without_news_key(self) -> None:
         s = Settings(llm_provider="anthropic", news_api_key="", anthropic_api_key="sk-test")
-        with pytest.raises(ConfigError, match="NEWS_API_KEY"):
-            s.validate_for_agent()
+        s.validate_for_agent()  # no error — news uses yfinance, no key needed
 
     # --- Unknown provider ---
 

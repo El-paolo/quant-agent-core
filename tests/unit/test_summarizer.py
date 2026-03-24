@@ -77,7 +77,7 @@ class TestSummarizeNews:
         import json
         request = httpx_mock.get_requests()[0]
         body = json.loads(request.content)
-        assert "MSFT" in body["messages"][0]["content"]
+        assert "MSFT" in body["messages"][-1]["content"]
 
     def test_custom_prompt_overrides_default(self, httpx_mock: HTTPXMock) -> None:
         httpx_mock.add_response(json=_ollama_response("ok"))
@@ -85,12 +85,13 @@ class TestSummarizeNews:
         import json
         request = httpx_mock.get_requests()[0]
         body = json.loads(request.content)
-        assert "Custom prompt here" in body["messages"][0]["content"]
+        assert "Custom prompt here" in body["messages"][-1]["content"]
 
-    def test_missing_news_key_raises_config_error(self) -> None:
+    def test_ollama_passes_without_news_key(self, httpx_mock: HTTPXMock) -> None:
+        httpx_mock.add_response(json={"message": {"content": "summary"}})
         s = _ollama_settings(news_api_key="")
-        with pytest.raises(ConfigError, match="NEWS_API_KEY"):
-            summarize_news("AAPL", _headlines(), s)
+        result = summarize_news("AAPL", _headlines(), s)  # no error — yfinance needs no key
+        assert isinstance(result, str)
 
     def test_provider_error_raises_fetcher_error(self, httpx_mock: HTTPXMock) -> None:
         httpx_mock.add_response(status_code=500)
@@ -103,7 +104,7 @@ class TestSummarizeNews:
         import json
         request = httpx_mock.get_requests()[0]
         body = json.loads(request.content)
-        prompt = body["messages"][0]["content"]
+        prompt = body["messages"][-1]["content"]
         assert "2025-01-01" in prompt
 
     def test_multiple_headlines_all_included(self, httpx_mock: HTTPXMock) -> None:
@@ -113,7 +114,7 @@ class TestSummarizeNews:
         import json
         request = httpx_mock.get_requests()[0]
         body = json.loads(request.content)
-        prompt = body["messages"][0]["content"]
+        prompt = body["messages"][-1]["content"]
         for h in headlines:
             assert h["title"] in prompt
 

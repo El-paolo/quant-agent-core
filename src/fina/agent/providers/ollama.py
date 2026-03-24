@@ -15,7 +15,7 @@ import httpx
 from fina.core.exceptions import FetcherError
 
 _DEFAULT_TIMEOUT = 60.0  # seconds — local models can be slow on first token
-_MAX_TOKENS = 512
+_MAX_TOKENS = 1024
 _DEFAULT_BASE_URL = "http://localhost:11434"
 
 class OllamaProvider:
@@ -33,10 +33,12 @@ class OllamaProvider:
         base_url: str = _DEFAULT_BASE_URL,
         model: str = "llama3.2:3b",
         timeout: float = _DEFAULT_TIMEOUT,
+        system_prompt: str = "",
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._model = model
         self._timeout = timeout
+        self._system_prompt = system_prompt
 
     # ------------------------------------------------------------------
     # LLMProvider protocol implementation
@@ -55,9 +57,14 @@ class OllamaProvider:
         Raises:
             FetcherError: On HTTP errors, timeout, or unexpected response format.
         """
+        messages = []
+        if self._system_prompt:
+            messages.append({"role": "system", "content": self._system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
         payload = {
             "model": self._model,
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": messages,
             "stream": False,
             "options": {"num_predict": _MAX_TOKENS},
         }

@@ -27,16 +27,12 @@ class Settings(BaseSettings):
     # --- LLM provider ---
     llm_provider: str = "ollama"
     ollama_base_url: str = "http://localhost:11434"
-    ollama_model: str = "llama3.2:3b"
+    ollama_model: str = "mistral"
     ollama_system_prompt: str = (
-        "- You are an expert financial analyst with deep knowledge of equity markets, "
-        "- Macroeconomics, and risk assessment. You analyze news objectively, highlight "
-        "- Material events, and communicate clearly and concisely to investment professionals."
-        "- Consider the materials related to the company and its industry, and the potential impact on the company's "
-        "- Financial performance and stock price. Focus on the most relevant information and avoid speculation."
-        "- Consider the credibility of the news source and the potential bias in the reporting. "
-        "- Consider the most recent news updates unless specified otherwise"
-        " - Consider company decisions, such as earnings reports, product launches, or management changes, and how they may influence investor perception and stock performance."
+        "You are an expert financial analyst. "
+        "When given news headlines, you analyze them objectively and identify key themes, "
+        "market sentiment, and material events that could affect stock performance. "
+        "Always base your analysis strictly on the provided headlines. Be concise and direct."
     )
 
     # --- External API keys (only required for their respective providers) ---
@@ -57,9 +53,9 @@ class Settings(BaseSettings):
         """
         Raise ConfigError if the configuration required for agent features is missing.
 
-        - NEWS_API_KEY is always required (regardless of LLM provider).
         - ANTHROPIC_API_KEY is only required when llm_provider=anthropic.
         - ollama settings are always present (have defaults).
+        - News is fetched via yfinance (no API key required).
 
         Call this at request time, not at startup, so /health and /analysis/
         work without agent credentials.
@@ -71,11 +67,6 @@ class Settings(BaseSettings):
             raise ConfigError(
                 f"Unknown LLM provider '{self.llm_provider}'. "
                 f"Valid options: {sorted(_VALID_PROVIDERS)}."
-            )
-        if not self.news_api_key:
-            raise ConfigError(
-                "NEWS_API_KEY is required for news fetching. "
-                "Set it in your .env file or as an environment variable."
             )
         if self.llm_provider == "anthropic" and not self.anthropic_api_key:
             raise ConfigError(

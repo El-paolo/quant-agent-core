@@ -33,6 +33,7 @@ def get_provider(settings: Settings) -> LLMProvider:
         return OllamaProvider(
             base_url=settings.ollama_base_url,
             model=settings.ollama_model,
+            system_prompt=settings.ollama_system_prompt,
         )
 
     if settings.llm_provider == "anthropic":
@@ -80,14 +81,16 @@ def summarize_news(
 
     headline_text = "\n".join(
         f"- {h['title']} ({h['publishedAt'][:10] if h['publishedAt'] else 'n/a'})"
+        + (f"\n  {h['description']}" if h.get("description") else "")
         for h in headlines
     )
 
     user_prompt = prompt or (
-        f"You are a financial analyst. Summarize the following recent news "
-        f"headlines about {ticker}. Focus on key themes, market sentiment, "
-        f"and any material events. Be concise (3-5 sentences).\n\n"
-        f"Headlines:\n{headline_text}"
+        f"Here are {len(headlines)} recent news articles about {ticker}:\n\n"
+        f"{headline_text}\n\n"
+        f"Based on the articles above, provide a concise analysis (3-5 sentences) "
+        f"covering: key themes, overall market sentiment, and any material events "
+        f"that could impact {ticker}'s stock price."
     )
 
     provider = get_provider(settings)
