@@ -6,9 +6,12 @@ The factory pattern allows injecting a custom Settings object,
 making the app fully testable without touching env variables.
 """
 
+from pathlib import Path
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from fina.api.middleware import RequestTimingMiddleware
 from fina.core.config import Settings, get_settings
@@ -73,6 +76,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health_router)
     app.include_router(analysis_router, prefix="/analysis")
     app.include_router(agent_router, prefix="/agent")
+
+    # --- Frontend static files ---
+    frontend_dir = Path(__file__).resolve().parent.parent.parent.parent / "frontend"
+    if frontend_dir.is_dir():
+        @app.get("/", include_in_schema=False, response_class=FileResponse)
+        async def landing_page():
+            return FileResponse(
+                frontend_dir / "index.html",
+                media_type="text/html",
+            )
+
+        app.mount(
+            "/static",
+            StaticFiles(directory=frontend_dir),
+            name="static",
+        )
 
     return app
 
