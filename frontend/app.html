@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FINA — Workspace</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="/static/css/app.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════
+       COMMAND BAR — Always visible, top
+  ═══════════════════════════════════════════ -->
+  <header class="command-bar" id="command-bar">
+    <a href="/" class="cb-logo" aria-label="FINA home">FINA</a>
+
+    <div class="cb-controls">
+      <input
+        type="text"
+        id="ticker-input"
+        class="cb-input"
+        placeholder="AAPL"
+        maxlength="20"
+        autocomplete="off"
+        spellcheck="false"
+        aria-label="Ticker symbol"
+      />
+
+      <select id="period-select" class="cb-select" aria-label="Período de análisis">
+        <option value="1d">1D</option>
+        <option value="5d">5D</option>
+        <option value="1mo">1M</option>
+        <option value="3mo">3M</option>
+        <option value="6mo">6M</option>
+        <option value="1y" selected>1Y</option>
+        <option value="2y">2Y</option>
+        <option value="5y">5Y</option>
+        <option value="max">MAX</option>
+      </select>
+
+      <button id="analyze-btn" class="cb-btn" type="button">
+        <span class="cb-btn-label">Analizar</span>
+        <span class="cb-btn-arrow">→</span>
+      </button>
+    </div>
+
+    <div class="cb-status">
+      <span class="health-dot" id="health-dot" title="API status"></span>
+      <span class="health-label" id="health-label">—</span>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════
+       APP SHELL — Rail + Canvas
+  ═══════════════════════════════════════════ -->
+  <div class="app-shell">
+
+    <!-- LEFT RAIL -->
+    <aside class="rail" id="rail">
+      <nav class="rail-nav" aria-label="Workspace navigation">
+        <button class="rail-link rail-link--active" data-panel="overview" aria-current="page">
+          <svg class="rail-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="3" width="6" height="6" rx="1"/>
+            <rect x="11" y="3" width="6" height="6" rx="1"/>
+            <rect x="3" y="11" width="6" height="6" rx="1"/>
+            <rect x="11" y="11" width="6" height="6" rx="1"/>
+          </svg>
+          <span class="rail-label">Overview</span>
+        </button>
+        <button class="rail-link" data-panel="metrics">
+          <svg class="rail-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M3 17V8l4-5 4 6 3-3 3 4v7z"/>
+          </svg>
+          <span class="rail-label">Métricas</span>
+        </button>
+        <button class="rail-link" data-panel="technicals" disabled>
+          <svg class="rail-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M2 10h3l2-6 3 12 2-8 2 4h4"/>
+          </svg>
+          <span class="rail-label">Técnicos</span>
+          <span class="rail-badge">Pronto</span>
+        </button>
+        <button class="rail-link" data-panel="news" disabled>
+          <svg class="rail-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="3" width="14" height="14" rx="2"/>
+            <line x1="6" y1="7" x2="14" y2="7"/>
+            <line x1="6" y1="10" x2="14" y2="10"/>
+            <line x1="6" y1="13" x2="10" y2="13"/>
+          </svg>
+          <span class="rail-label">Noticias & IA</span>
+          <span class="rail-badge">Pronto</span>
+        </button>
+        <button class="rail-link" data-panel="chat" disabled>
+          <svg class="rail-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M4 4h12a2 2 0 012 2v7a2 2 0 01-2 2H7l-3 3V6a2 2 0 012-2z"/>
+          </svg>
+          <span class="rail-label">Chat</span>
+          <span class="rail-badge">Pronto</span>
+        </button>
+      </nav>
+
+      <div class="rail-divider"></div>
+
+      <!-- Parameters -->
+      <div class="rail-params">
+        <button class="params-toggle" id="params-toggle" aria-expanded="true">
+          <span class="params-toggle-label">Parámetros</span>
+          <svg class="params-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <polyline points="4 6 8 10 12 6"/>
+          </svg>
+        </button>
+        <div class="params-body" id="params-body">
+          <fieldset class="params-group">
+            <legend class="params-legend">Métricas</legend>
+            <label class="param-check"><input type="checkbox" value="returns" checked /><span>Returns</span></label>
+            <label class="param-check"><input type="checkbox" value="volatility" checked /><span>Volatility</span></label>
+            <label class="param-check"><input type="checkbox" value="rolling_volatility" checked /><span>Rolling Vol</span></label>
+            <label class="param-check"><input type="checkbox" value="sharpe" checked /><span>Sharpe</span></label>
+            <label class="param-check"><input type="checkbox" value="sortino" checked /><span>Sortino</span></label>
+            <label class="param-check"><input type="checkbox" value="rsi" checked /><span>RSI</span></label>
+            <label class="param-check"><input type="checkbox" value="macd" checked /><span>MACD</span></label>
+            <label class="param-check"><input type="checkbox" value="bollinger" checked /><span>Bollinger</span></label>
+            <label class="param-check"><input type="checkbox" value="beta" checked /><span>Beta</span></label>
+          </fieldset>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN CANVAS -->
+    <main class="canvas" id="canvas">
+
+      <!-- EMPTY STATE -->
+      <div class="empty-state" id="empty-state">
+        <div class="empty-icon" aria-hidden="true">
+          <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.2">
+            <rect x="6" y="6" width="36" height="36" rx="4"/>
+            <path d="M6 32l10-8 8 6 8-10 10 8"/>
+            <circle cx="16" cy="18" r="3"/>
+          </svg>
+        </div>
+        <p class="empty-title">Ingresa un ticker y presiona Analizar</p>
+        <p class="empty-hint">Ejemplo: AAPL, MSFT, TSLA, NVDA, BTC-USD</p>
+      </div>
+
+      <!-- LOADING STATE -->
+      <div class="loading-state hidden" id="loading-state">
+        <div class="metrics-grid">
+          <div class="metric-card skeleton-card"><div class="skeleton sk-value"></div><div class="skeleton sk-label"></div></div>
+          <div class="metric-card skeleton-card"><div class="skeleton sk-value"></div><div class="skeleton sk-label"></div></div>
+          <div class="metric-card skeleton-card"><div class="skeleton sk-value"></div><div class="skeleton sk-label"></div></div>
+          <div class="metric-card skeleton-card"><div class="skeleton sk-value"></div><div class="skeleton sk-label"></div></div>
+          <div class="metric-card skeleton-card"><div class="skeleton sk-value"></div><div class="skeleton sk-label"></div></div>
+          <div class="metric-card skeleton-card"><div class="skeleton sk-value"></div><div class="skeleton sk-label"></div></div>
+          <div class="metric-card skeleton-card"><div class="skeleton sk-value"></div><div class="skeleton sk-label"></div></div>
+          <div class="metric-card skeleton-card"><div class="skeleton sk-value"></div><div class="skeleton sk-label"></div></div>
+        </div>
+        <div class="summary-skeleton">
+          <div class="skeleton sk-title"></div>
+          <div class="skeleton sk-line"></div>
+          <div class="skeleton sk-line"></div>
+          <div class="skeleton sk-line sk-short"></div>
+        </div>
+      </div>
+
+      <!-- ERROR STATE -->
+      <div class="error-state hidden" id="error-state">
+        <div class="error-card">
+          <div class="error-tag">Error</div>
+          <p class="error-message" id="error-message"></p>
+          <button class="error-retry" id="error-retry" type="button">Reintentar</button>
+        </div>
+      </div>
+
+      <!-- RESULTS STATE -->
+      <div class="results-state hidden" id="results-state">
+
+        <!-- Ticker header -->
+        <div class="results-header">
+          <h1 class="results-ticker" id="results-ticker"></h1>
+          <div class="results-meta">
+            <span class="results-period" id="results-period"></span>
+            <span class="results-time" id="results-time"></span>
+          </div>
+        </div>
+
+        <!-- Metric Cards Grid -->
+        <div class="metrics-grid" id="metrics-grid"></div>
+
+        <!-- Warnings -->
+        <div class="warnings hidden" id="warnings">
+          <div class="warnings-inner" id="warnings-inner"></div>
+        </div>
+
+        <!-- AI Summary -->
+        <div class="summary-section" id="summary-section">
+          <div class="summary-header">
+            <span class="summary-tag">Resumen IA</span>
+            <span class="summary-status" id="summary-status"></span>
+          </div>
+          <div class="summary-body" id="summary-body">
+            <div class="summary-loading">
+              <span class="spinner"></span>
+              <span>Generando resumen...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Headlines -->
+        <div class="headlines-section hidden" id="headlines-section">
+          <div class="headlines-header">
+            <span class="summary-tag">Headlines</span>
+          </div>
+          <ul class="headlines-list" id="headlines-list"></ul>
+        </div>
+
+      </div>
+
+      <!-- METRICS PANEL -->
+      <div class="panel hidden" id="metrics-panel">
+
+        <div class="panel-header">
+          <h2 class="panel-title" id="metrics-panel-ticker"></h2>
+          <div class="panel-meta" id="metrics-panel-meta"></div>
+        </div>
+
+        <!-- Loading skeleton for metrics panel -->
+        <div class="panel-loading hidden" id="metrics-panel-loading">
+          <div class="chart-skeleton"></div>
+          <div class="chart-skeleton"></div>
+          <div class="chart-skeleton"></div>
+        </div>
+
+        <!-- Error within panel -->
+        <div class="panel-error hidden" id="metrics-panel-error">
+          <p class="panel-error-msg" id="metrics-panel-error-msg"></p>
+        </div>
+
+        <!-- Content -->
+        <div id="metrics-panel-content" class="hidden">
+
+          <!-- Returns & Volatility -->
+          <div class="chart-section">
+            <div class="chart-section-header">
+              <div>
+                <span class="chart-title">Volatilidad Rolling</span>
+                <span class="chart-subtitle">21 días · anualizada</span>
+              </div>
+              <div class="chart-stats" id="vol-stats"></div>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="chart-vol" aria-label="Gráfico de volatilidad rolling"></canvas>
+            </div>
+          </div>
+
+          <!-- Returns distribution row: stats table left + histogram right -->
+          <div class="metrics-two-col">
+
+            <div class="chart-section">
+              <div class="chart-section-header">
+                <div>
+                  <span class="chart-title">Returns</span>
+                  <span class="chart-subtitle">Log returns diarios</span>
+                </div>
+              </div>
+              <div class="returns-stats-grid" id="returns-stats-grid"></div>
+            </div>
+
+            <div class="chart-section">
+              <div class="chart-section-header">
+                <div>
+                  <span class="chart-title">Ratios de Riesgo</span>
+                  <span class="chart-subtitle">Sharpe · Sortino · Beta</span>
+                </div>
+              </div>
+              <div class="ratios-grid" id="ratios-grid"></div>
+            </div>
+
+          </div>
+
+          <!-- Bollinger Bands -->
+          <div class="chart-section">
+            <div class="chart-section-header">
+              <div>
+                <span class="chart-title">Bollinger Bands</span>
+                <span class="chart-subtitle">20 días · 2σ</span>
+              </div>
+              <div class="chart-stats" id="bb-stats"></div>
+            </div>
+            <div class="chart-wrap chart-wrap--tall">
+              <canvas id="chart-bb" aria-label="Gráfico de Bollinger Bands"></canvas>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

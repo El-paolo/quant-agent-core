@@ -71,10 +71,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # --- Routes (imported inside factory to avoid circular imports) ---
     from fina.api.routes.health import router as health_router
     from fina.api.routes.analysis import router as analysis_router
+    from fina.api.routes.timeseries import router as timeseries_router
     from fina.api.routes.agent import router as agent_router
 
     app.include_router(health_router)
     app.include_router(analysis_router, prefix="/analysis")
+    app.include_router(timeseries_router, prefix="/analysis")
     app.include_router(agent_router, prefix="/agent")
 
     # --- Frontend static files ---
@@ -84,6 +86,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         async def landing_page():
             return FileResponse(
                 frontend_dir / "index.html",
+                media_type="text/html",
+            )
+
+        @app.get("/app", include_in_schema=False, response_class=FileResponse)
+        async def workspace():
+            return FileResponse(
+                frontend_dir / "app.html",
                 media_type="text/html",
             )
 
