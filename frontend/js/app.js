@@ -452,8 +452,10 @@
     renderBollingerChart(series.bollinger || [], computed);
   }
 
-  /* Chart.js shared config */
-  function baseChartOptions(yTickFmt) {
+  /* Chart.js shared config.
+     fullDates: the complete array of date strings — used so tooltips
+     always show the real date even when the x-axis labels are sparse. */
+  function baseChartOptions(yTickFmt, fullDates) {
     return {
       responsive: true,
       maintainAspectRatio: false,
@@ -469,6 +471,13 @@
           borderWidth: 1,
           padding: 10,
           cornerRadius: 6,
+          callbacks: {
+            title: function (items) {
+              if (!items.length) return "";
+              var idx = items[0].dataIndex;
+              return fullDates && fullDates[idx] ? fullDates[idx] : items[0].label;
+            },
+          },
         },
       },
       scales: {
@@ -516,7 +525,7 @@
       '<span class="chart-stat-label">Actual</span>' +
       '</div>';
 
-    var opts = baseChartOptions(function (v) { return v + "%"; });
+    var opts = baseChartOptions(function (v) { return v + "%"; }, labels);
     opts.scales.y.min = 0;
 
     charts.vol = new Chart(document.getElementById("chart-vol"), {
@@ -625,11 +634,9 @@
         '<div class="chart-stat"><span class="chart-stat-value">' + escHtml(fmt(bb.percent_b, 2)) + '</span><span class="chart-stat-label">%B</span></div>';
     }
 
-    var opts = baseChartOptions(function (v) { return "$" + v; });
-    opts.plugins.tooltip.callbacks = {
-      label: function (ctx) {
-        return ctx.dataset.label + ": $" + ctx.parsed.y.toFixed(2);
-      },
+    var opts = baseChartOptions(function (v) { return "$" + v; }, labels);
+    opts.plugins.tooltip.callbacks.label = function (ctx) {
+      return ctx.dataset.label + ": $" + ctx.parsed.y.toFixed(2);
     };
 
     charts.bb = new Chart(document.getElementById("chart-bb"), {

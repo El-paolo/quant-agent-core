@@ -13,7 +13,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from fina.api.middleware import RequestTimingMiddleware
+from fina.api.middleware import (
+    RateLimitMiddleware,
+    RequestTimingMiddleware,
+    SecurityHeadersMiddleware,
+)
 from fina.core.config import Settings, get_settings
 from fina.core.exceptions import ConfigError
 
@@ -66,6 +70,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(RateLimitMiddleware, max_requests=30, window_seconds=60)
+    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestTimingMiddleware)
 
     # --- Routes (imported inside factory to avoid circular imports) ---
