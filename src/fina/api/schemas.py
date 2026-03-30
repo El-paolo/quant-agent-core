@@ -21,7 +21,7 @@ _KNOWN_METRICS = frozenset(
 )
 
 _KNOWN_TIMESERIES = frozenset(
-    {"rolling_volatility", "rsi", "macd", "bollinger", "returns", "prices"}
+    {"rolling_volatility", "rsi", "macd", "bollinger", "returns", "prices", "volume"}
 )
 
 _VALID_PERIODS = frozenset(

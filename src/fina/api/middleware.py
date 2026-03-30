@@ -88,4 +88,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        # Prevent browser caching of static assets during development
+        path = request.url.path
+        if path.startswith("/static/") or path in ("/app", "/"):
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
         return response

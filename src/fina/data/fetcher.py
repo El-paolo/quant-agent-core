@@ -139,6 +139,79 @@ def _parse_date(value: str | date | None, param_name: str) -> str | None:
     return parsed.isoformat()
 
 
+def _fetch_history(
+    ticker: str,
+    start: str | date | None = None,
+    end: str | date | None = None,
+    period: str | None = "1y",
+) -> pd.DataFrame:
+    """
+    Internal: fetch full OHLCV DataFrame via yfinance with caching.
+
+    Returns the raw DataFrame (Close, Volume, etc.) so that public functions
+    can extract the column they need without duplicate network calls.
+    """
+    clean_ticker = _sanitize_ticker(ticker)
+    start_str = _parse_date(start, "start")
+    end_str = _parse_date(end, "end")
+
+    cache_key = hashkey(clean_ticker, start_str, end_str, period or "1y")
+    with _price_cache_lock:
+        if cache_key in _price_cache:
+            return _price_cache[cache_key]  # type: ignore[return-value]
+
+    _VALID_PERIODS = {
+        "1d", "5d", "1mo", "3mo", "6mo",
+        "1y", "2y", "5y", "10y", "ytd", "max",
+    }
+    if period is not None and period not in _VALID_PERIODS:
+        raise FetcherError(
+            f"Invalid period '{period}'. "
+            f"Valid values: {sorted(_VALID_PERIODS)}."
+        )
+
+    if start_str and end_str and start_str >= end_str:
+        raise FetcherError(
+            f"'start' ({start_str}) must be strictly before 'end' ({end_str})."
+        )
+
+    try:
+        ticker_obj = yf.Ticker(clean_ticker)
+
+        if start_str:
+            df: pd.DataFrame = ticker_obj.history(
+                start=start_str,
+                end=end_str or date.today().isoformat(),
+                auto_adjust=True,
+            )
+        else:
+            df = ticker_obj.history(
+                period=period or "1y",
+                auto_adjust=True,
+            )
+    except Exception as exc:
+        raise FetcherError(
+            f"Failed to fetch data for '{clean_ticker}': {exc}"
+        ) from exc
+
+    if df is None or df.empty:
+        raise FetcherError(
+            f"No price data returned for '{clean_ticker}'. "
+            "The ticker may be invalid or delisted."
+        )
+
+    if "Close" not in df.columns:
+        raise FetcherError(
+            f"Unexpected response format for '{clean_ticker}': "
+            "'Close' column not found."
+        )
+
+    with _price_cache_lock:
+        _price_cache[cache_key] = df
+
+    return df
+
+
 def fetch_close_prices(
     ticker: str,
     start: str | date | None = None,
@@ -172,66 +245,8 @@ def fetch_close_prices(
         >>> prices = fetch_close_prices("AAPL", period="6mo")
         >>> prices = fetch_close_prices("BTC-USD", start="2023-01-01")
     """
-    # --- Input validation (security boundary) ---
     clean_ticker = _sanitize_ticker(ticker)
-    start_str = _parse_date(start, "start")
-    end_str = _parse_date(end, "end")
-
-    # --- Cache lookup (after validation so key is always canonical) ---
-    cache_key = hashkey(clean_ticker, start_str, end_str, period or "1y")
-    with _price_cache_lock:
-        if cache_key in _price_cache:
-            return _price_cache[cache_key]  # type: ignore[return-value]
-
-    # Validate period if provided
-    _VALID_PERIODS = {
-        "1d", "5d", "1mo", "3mo", "6mo",
-        "1y", "2y", "5y", "10y", "ytd", "max",
-    }
-    if period is not None and period not in _VALID_PERIODS:
-        raise FetcherError(
-            f"Invalid period '{period}'. "
-            f"Valid values: {sorted(_VALID_PERIODS)}."
-        )
-
-    # Validate date ordering when both are given
-    if start_str and end_str and start_str >= end_str:
-        raise FetcherError(
-            f"'start' ({start_str}) must be strictly before 'end' ({end_str})."
-        )
-
-    # --- Fetch ---
-    try:
-        ticker_obj = yf.Ticker(clean_ticker)
-
-        if start_str:
-            df: pd.DataFrame = ticker_obj.history(
-                start=start_str,
-                end=end_str or date.today().isoformat(),
-                auto_adjust=True,
-            )
-        else:
-            df = ticker_obj.history(
-                period=period or "1y",
-                auto_adjust=True,
-            )
-    except Exception as exc:
-        raise FetcherError(
-            f"Failed to fetch data for '{clean_ticker}': {exc}"
-        ) from exc
-
-    # --- Validate response ---
-    if df is None or df.empty:
-        raise FetcherError(
-            f"No price data returned for '{clean_ticker}'. "
-            "The ticker may be invalid or delisted."
-        )
-
-    if "Close" not in df.columns:
-        raise FetcherError(
-            f"Unexpected response format for '{clean_ticker}': "
-            "'Close' column not found."
-        )
+    df = _fetch_history(ticker, start=start, end=end, period=period)
 
     prices: pd.Series = df["Close"].rename(clean_ticker)
 
@@ -240,11 +255,32 @@ def fetch_close_prices(
             f"All price values are null for '{clean_ticker}'."
         )
 
-    # Drop any trailing NaNs from yfinance padding
-    prices = prices.dropna()
+    return prices.dropna()
 
-    # --- Store in cache ---
-    with _price_cache_lock:
-        _price_cache[cache_key] = prices
 
-    return prices
+def fetch_volume(
+    ticker: str,
+    start: str | date | None = None,
+    end: str | date | None = None,
+    period: str | None = "1y",
+) -> pd.Series:
+    """
+    Fetch trading volume for a given ticker via yfinance.
+
+    Uses the same cached DataFrame as ``fetch_close_prices``, so calling
+    both for the same ticker/period does not trigger a second network request.
+
+    Returns:
+        ``pd.Series`` with a ``DatetimeIndex``, values are daily volume (int/float).
+        Returns an empty Series if volume data is not available (e.g. FX pairs).
+
+    Raises:
+        FetcherError: On invalid inputs, network failures, or empty responses.
+    """
+    df = _fetch_history(ticker, start=start, end=end, period=period)
+
+    if "Volume" not in df.columns:
+        return pd.Series(dtype=float, name="Volume")
+
+    volume: pd.Series = df["Volume"].rename("Volume")
+    return volume.dropna()

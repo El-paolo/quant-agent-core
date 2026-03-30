@@ -468,9 +468,37 @@ legend { display: block; }
   color: var(--on-surface);
 }
 
+.empty-chips {
+  display: flex;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: var(--s-4);
+}
+
+.empty-chip {
+  padding: var(--s-2) var(--s-4);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--outline-variant);
+  background: var(--surface-container-lowest);
+  color: var(--on-surface);
+  font-family: var(--font);
+  font-size: var(--body-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease-out);
+}
+
+.empty-chip:hover {
+  background: var(--on-surface);
+  color: var(--surface);
+  border-color: var(--on-surface);
+}
+
 .empty-hint {
   font-size: var(--label-md);
   color: var(--outline-variant);
+  margin-top: var(--s-3);
 }
 
 /* --- 8. Loading State --- */
@@ -632,6 +660,15 @@ legend { display: block; }
   transform: translateY(-1px);
 }
 
+.mc-label {
+  font-size: var(--label-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--on-surface-variant);
+  margin-bottom: var(--s-2);
+}
+
 .mc-value {
   font-size: clamp(1.25rem, 1rem + 1.5vw, 1.75rem);
   font-weight: 800;
@@ -646,12 +683,9 @@ legend { display: block; }
 .mc-value.neutral  { color: var(--on-surface); }
 .mc-value.na       { color: var(--outline-variant); }
 
-.mc-label {
-  font-size: var(--label-sm);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--on-surface-variant);
+.mc-arrow {
+  font-size: 0.65em;
+  vertical-align: middle;
 }
 
 .mc-detail {
@@ -1035,6 +1069,17 @@ legend { display: block; }
   height: 260px;
 }
 
+.chart-annotation {
+  margin-top: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  font-size: var(--label-sm);
+  line-height: 1.5;
+  color: var(--outline);
+  background: var(--surface-container-low);
+  border-radius: var(--radius-lg);
+  border-left: 3px solid var(--outline-variant);
+}
+
 /* --- 20. Two-column layout for smaller charts --- */
 .metrics-two-col {
   display: grid;
@@ -1112,6 +1157,92 @@ legend { display: block; }
 
 .ratio-value.positive { color: var(--secondary); }
 .ratio-value.negative { color: var(--tertiary); }
+
+/* --- 23. News & IA panel --- */
+.news-summary-section {
+  background: var(--surface-container-lowest);
+  border-radius: var(--radius-xl);
+  padding: var(--s-6);
+  outline: 1px solid rgba(171, 179, 183, 0.15);
+  margin-bottom: var(--s-6);
+}
+
+.news-headlines-section {
+  background: var(--surface-container-lowest);
+  border-radius: var(--radius-xl);
+  padding: var(--s-6);
+  outline: 1px solid rgba(171, 179, 183, 0.15);
+}
+
+/* --- 24. Methodology panel --- */
+.methodology-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-4);
+}
+
+.method-card {
+  background: var(--surface-container-lowest);
+  border-radius: var(--radius-xl);
+  padding: var(--s-6);
+  outline: 1px solid rgba(171, 179, 183, 0.15);
+}
+
+.method-name {
+  font-size: var(--body-md);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--on-surface);
+  margin-bottom: var(--s-4);
+}
+
+.method-params {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-bottom: var(--s-4);
+}
+
+.method-param {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-4);
+}
+
+.method-param dt {
+  font-size: var(--label-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--outline);
+  flex-shrink: 0;
+}
+
+.method-param dd {
+  font-size: var(--body-md);
+  font-weight: 600;
+  color: var(--on-surface);
+  text-align: right;
+}
+
+.method-param dd sub {
+  font-size: 0.75em;
+}
+
+.method-note {
+  font-size: var(--label-sm);
+  line-height: 1.55;
+  color: var(--on-surface-variant);
+  padding-top: var(--s-3);
+  border-top: 1px solid rgba(171, 179, 183, 0.15);
+}
+
+@media (max-width: 960px) {
+  .methodology-grid {
+    grid-template-columns: 1fr;
+  }
+}
 
 /* --- 18. Reduced Motion --- */
 @media (prefers-reduced-motion: reduce) {

@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException
 from fina.api.schemas import TimeseriesRequest, TimeseriesResponse
 from fina.core.exceptions import FetcherError, MetricsError, ValidationError
 from fina.data.cleaner import clean_prices
-from fina.data.fetcher import fetch_close_prices
+from fina.data.fetcher import fetch_close_prices, fetch_volume
 from fina.metrics.returns import compute_returns
 from fina.metrics.technical import compute_bollinger_bands, compute_macd, compute_rsi
 from fina.metrics.volatility import rolling_volatility
@@ -77,6 +77,14 @@ async def analysis_timeseries(request: TimeseriesRequest) -> TimeseriesResponse:
             bb_with_price = bb_df.copy()
             bb_with_price["price"] = prices.reindex(bb_df.index)
             series["bollinger"] = _series_to_list(bb_with_price)
+
+        if "volume" in requested:
+            vol_series = fetch_volume(request.ticker, period=request.period)
+            if not vol_series.empty:
+                series["volume"] = _series_to_list(vol_series)
+            else:
+                series["volume"] = []
+                warnings.append("Volume data not available for this ticker.")
 
     except (FetcherError, MetricsError, ValidationError) as exc:
         raise HTTPException(status_code=422, detail=str(exc))

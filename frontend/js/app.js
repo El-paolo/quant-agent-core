@@ -12,14 +12,18 @@
   ];
 
   var CHART_COLORS = {
-    line:     "#2b3437",
+    line:     "#1a56db",           /* indigo — primary data, high contrast on white */
     positive: "#006d4a",
     negative: "#ba1b24",
-    neutral:  "#737c7f",
-    grid:     "rgba(171,179,183,0.15)",
-    upper:    "rgba(186,27,36,0.15)",
-    lower:    "rgba(0,109,74,0.15)",
-    mid:      "#abb3b7",
+    neutral:  "#586064",
+    grid:     "rgba(171,179,183,0.18)",
+    upper:    "rgba(186,27,36,0.25)",
+    lower:    "rgba(0,109,74,0.25)",
+    mid:      "#8b5cf6",           /* violet — SMA/media, distinct from price line */
+    band:     "rgba(139,92,246,0.08)", /* violet fill between bands */
+    fill:     "rgba(26,86,219,0.10)",  /* indigo fill under vol line */
+    volume:   "rgba(107,114,128,0.35)",/* gray bars for volume */
+    volumeAvg:"#f59e0b",              /* amber line for avg volume */
   };
 
   /* ─── Application State ─── */
@@ -30,6 +34,7 @@
     activePanel: "overview",
     analysisResult: null,
     timeseriesResult: null,
+    techSeriesResult: null,
     agentResult: null,
     agentTicker: null,
     loading: { analysis: false, agent: false, timeseries: false },
@@ -37,7 +42,7 @@
   };
 
   /* Chart instances — destroyed before re-creating */
-  var charts = { vol: null, bb: null };
+  var charts = { vol: null, bb: null, volume: null, rsi: null, macd: null, techBb: null };
 
   /* ─── DOM refs ─── */
   var $ticker       = document.getElementById("ticker-input");
@@ -63,7 +68,6 @@
   var $warningsInner    = document.getElementById("warnings-inner");
   var $summaryStatus    = document.getElementById("summary-status");
   var $summaryBody      = document.getElementById("summary-body");
-  var $summarySection   = document.getElementById("summary-section");
   var $headlinesSection = document.getElementById("headlines-section");
   var $headlinesList    = document.getElementById("headlines-list");
 
@@ -77,8 +81,31 @@
   var $metricsPanelContent = document.getElementById("metrics-panel-content");
   var $volStats            = document.getElementById("vol-stats");
   var $bbStats             = document.getElementById("bb-stats");
+  var $volumeStats         = document.getElementById("volume-stats");
   var $returnsStatsGrid    = document.getElementById("returns-stats-grid");
   var $ratiosGrid          = document.getElementById("ratios-grid");
+
+  /* News & IA panel */
+  var $newsPanel           = document.getElementById("news-panel");
+  var $newsPanelTicker     = document.getElementById("news-panel-ticker");
+  var $newsPanelMeta       = document.getElementById("news-panel-meta");
+  var $newsPanelEmpty      = document.getElementById("news-panel-empty");
+  var $newsSummarySection  = document.getElementById("news-summary-section");
+
+  /* Technicals panel */
+  var $techPanel           = document.getElementById("technicals-panel");
+  var $techPanelTicker     = document.getElementById("tech-panel-ticker");
+  var $techPanelMeta       = document.getElementById("tech-panel-meta");
+  var $techPanelLoading    = document.getElementById("tech-panel-loading");
+  var $techPanelError      = document.getElementById("tech-panel-error");
+  var $techPanelErrorMsg   = document.getElementById("tech-panel-error-msg");
+  var $techPanelContent    = document.getElementById("tech-panel-content");
+  var $rsiStats            = document.getElementById("rsi-stats");
+  var $macdStats           = document.getElementById("macd-stats");
+  var $techBbStats         = document.getElementById("tech-bb-stats");
+
+  /* Methodology panel */
+  var $methodologyPanel    = document.getElementById("methodology-panel");
 
   /* Rail links */
   var $railLinks = document.querySelectorAll(".rail-link[data-panel]");
@@ -166,13 +193,15 @@
   }
 
   function switchToPanel(panelName) {
-    /* Hide overview canvas states */
+    /* Hide all panels */
     hide($emptyState);
     hide($loadingState);
     hide($errorState);
     hide($resultsState);
-    /* Hide metrics panel */
     hide($metricsPanel);
+    hide($techPanel);
+    hide($newsPanel);
+    hide($methodologyPanel);
 
     state.activePanel = panelName;
     setActiveRailLink(panelName);
@@ -188,13 +217,45 @@
       if (state.analysisResult) {
         loadMetricsPanel();
       } else {
-        /* Show empty prompt inside metrics panel */
         hide($metricsPanelLoading);
         hide($metricsPanelContent);
         hide($metricsPanelError);
         $metricsPanelTicker.textContent = "";
         $metricsPanelMeta.textContent = "Ingresa un ticker y presiona Analizar";
       }
+    } else if (panelName === "news") {
+      show($newsPanel);
+      if (state.agentResult) {
+        $newsPanelTicker.textContent = state.agentTicker || "";
+        $newsPanelMeta.textContent = "Noticias & Análisis IA";
+        hide($newsPanelEmpty);
+        show($newsSummarySection);
+        renderAgentResults();
+      } else if (state.loading.agent) {
+        $newsPanelTicker.textContent = state.ticker || "";
+        $newsPanelMeta.textContent = "Cargando...";
+        hide($newsPanelEmpty);
+        show($newsSummarySection);
+      } else {
+        $newsPanelTicker.textContent = "";
+        $newsPanelMeta.textContent = "Noticias & Análisis IA";
+        hide($newsSummarySection);
+        hide($headlinesSection);
+        show($newsPanelEmpty);
+      }
+    } else if (panelName === "technicals") {
+      show($techPanel);
+      if (state.analysisResult) {
+        loadTechnicalsPanel();
+      } else {
+        hide($techPanelLoading);
+        hide($techPanelContent);
+        hide($techPanelError);
+        $techPanelTicker.textContent = "";
+        $techPanelMeta.textContent = "Ingresa un ticker y presiona Analizar";
+      }
+    } else if (panelName === "methodology") {
+      show($methodologyPanel);
     }
   }
 
@@ -211,6 +272,7 @@
     state.errors  = [];
     state.analysisResult    = null;
     state.timeseriesResult  = null;
+    state.techSeriesResult  = null;
     if (tickerChanged) state.agentResult = null;
     if (state.metrics.length === 0) state.metrics = ALL_METRICS.slice();
 
@@ -221,6 +283,9 @@
     hide($errorState);
     hide($resultsState);
     hide($metricsPanel);
+    hide($techPanel);
+    hide($newsPanel);
+    hide($methodologyPanel);
     show($loadingState);
 
     $analyzeBtn.disabled = true;
@@ -233,6 +298,7 @@
       body: JSON.stringify({ ticker: state.ticker, period: state.period, metrics: state.metrics }),
     })
       .then(function (r) {
+        state.processTimeMs = r.headers.get("X-Process-Time-Ms");
         if (!r.ok) return r.json().then(function (e) { throw new Error(e.detail || "Error " + r.status); });
         return r.json();
       })
@@ -286,7 +352,12 @@
 
     $resultsTicker.textContent = data.ticker;
     $resultsPeriod.textContent = data.period.toUpperCase();
-    $resultsTime.textContent   = new Date().toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" });
+    var timeParts = [new Date().toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })];
+    if (state.processTimeMs) timeParts.push(parseFloat(state.processTimeMs).toFixed(0) + "ms");
+    var obs = computed.returns ? computed.returns.observations : null;
+    if (obs) timeParts.push(fmt(obs, 0) + " obs");
+    $resultsTime.textContent = timeParts.join(" · ");
+    document.title = "FINA — " + data.ticker;
 
     var cards = buildMetricCards(computed);
     $metricsGrid.innerHTML = "";
@@ -300,11 +371,6 @@
     } else {
       hide($warnings);
     }
-
-    show($summarySection);
-    $summaryBody.innerHTML = '<div class="summary-loading"><span class="spinner"></span><span>Generando resumen...</span></div>';
-    $summaryStatus.textContent = "";
-    hide($headlinesSection);
   }
 
   function buildMetricCards(computed) {
@@ -372,22 +438,37 @@
       div.className = "metric-card";
       var val    = def.value(computed);
       var detail = def.detail(computed);
+      var clr    = def.color(computed);
+      var arrow  = clr === "positive" ? "&#x25B2;" : clr === "negative" ? "&#x25BC;" : "";
       div.innerHTML =
-        '<div class="mc-value ' + def.color(computed) + '">' + escHtml(val) + "</div>" +
         '<div class="mc-label">' + escHtml(def.label) + "</div>" +
+        '<div class="mc-value ' + clr + '">' +
+          (arrow ? '<span class="mc-arrow">' + arrow + "</span> " : "") +
+          escHtml(val) +
+        "</div>" +
         (detail ? '<div class="mc-detail">' + escHtml(detail) + "</div>" : "");
       return div;
     });
   }
 
   function renderAgentResults() {
+    /* Update news panel header */
+    if (state.agentTicker) {
+      $newsPanelTicker.textContent = state.agentTicker;
+      $newsPanelMeta.textContent = "Noticias & Análisis IA";
+    }
+
     if (!state.agentResult) {
       $summaryBody.innerHTML = '<div class="summary-error">Resumen IA no disponible.</div>';
       $summaryStatus.textContent = "error";
+      show($newsSummarySection);
+      hide($newsPanelEmpty);
       return;
     }
     $summaryBody.innerHTML = '<div class="summary-text">' + escHtml(state.agentResult.summary) + "</div>";
     $summaryStatus.textContent = "";
+    show($newsSummarySection);
+    hide($newsPanelEmpty);
     if (state.agentResult.headlines && state.agentResult.headlines.length > 0) {
       $headlinesList.innerHTML = state.agentResult.headlines.map(function (h) {
         return '<li class="headline-item">' + escHtml(h) + "</li>";
@@ -421,7 +502,7 @@
       body: JSON.stringify({
         ticker: state.ticker,
         period: state.period,
-        series: ["rolling_volatility", "bollinger"],
+        series: ["rolling_volatility", "bollinger", "volume"],
       }),
     })
       .then(function (r) {
@@ -450,6 +531,7 @@
     renderReturnsStats(computed);
     renderRatios(computed);
     renderBollingerChart(series.bollinger || [], computed);
+    renderVolumeChart(series.volume || []);
   }
 
   /* Chart.js shared config.
@@ -535,11 +617,11 @@
         datasets: [{
           data: values,
           borderColor: CHART_COLORS.line,
-          borderWidth: 1.5,
+          borderWidth: 2,
           pointRadius: 0,
           tension: 0.3,
           fill: true,
-          backgroundColor: "rgba(43,52,55,0.04)",
+          backgroundColor: CHART_COLORS.fill,
         }],
       },
       options: opts,
@@ -635,6 +717,18 @@
     }
 
     var opts = baseChartOptions(function (v) { return "$" + v; }, labels);
+    opts.plugins.legend = {
+      display: true,
+      position: "bottom",
+      labels: {
+        color: "#586064",
+        font: { family: "Inter", size: 11 },
+        boxWidth: 12,
+        boxHeight: 2,
+        padding: 16,
+        usePointStyle: false,
+      },
+    };
     opts.plugins.tooltip.callbacks.label = function (ctx) {
       return ctx.dataset.label + ": $" + ctx.parsed.y.toFixed(2);
     };
@@ -647,9 +741,9 @@
           {
             label: "Superior",
             data: upper,
-            borderColor: "rgba(186,27,36,0.5)",
-            borderWidth: 1,
-            borderDash: [4, 3],
+            borderColor: CHART_COLORS.negative,
+            borderWidth: 1.2,
+            borderDash: [5, 3],
             pointRadius: 0,
             fill: false,
           },
@@ -657,24 +751,25 @@
             label: "Media",
             data: mid,
             borderColor: CHART_COLORS.mid,
-            borderWidth: 1,
+            borderWidth: 1.5,
             pointRadius: 0,
             fill: false,
           },
           {
             label: "Inferior",
             data: lower,
-            borderColor: "rgba(0,109,74,0.5)",
-            borderWidth: 1,
-            borderDash: [4, 3],
+            borderColor: CHART_COLORS.positive,
+            borderWidth: 1.2,
+            borderDash: [5, 3],
             pointRadius: 0,
-            fill: false,
+            fill: "-2",
+            backgroundColor: CHART_COLORS.band,
           },
           {
             label: "Precio",
             data: price,
             borderColor: CHART_COLORS.line,
-            borderWidth: 1.5,
+            borderWidth: 2,
             pointRadius: 0,
             tension: 0.2,
             fill: false,
@@ -683,6 +778,330 @@
       },
       options: opts,
     });
+  }
+
+  /* ─── Technicals Panel ─── */
+  function loadTechnicalsPanel() {
+    var data = state.analysisResult.data;
+    $techPanelTicker.textContent = data.ticker;
+    $techPanelMeta.textContent   = data.period.toUpperCase() + " · Indicadores técnicos";
+
+    if (state.techSeriesResult &&
+        state.techSeriesResult.ticker === state.ticker &&
+        state.techSeriesResult.period === state.period) {
+      renderTechnicalsPanel();
+      return;
+    }
+
+    hide($techPanelContent);
+    hide($techPanelError);
+    show($techPanelLoading);
+
+    fetch("/analysis/timeseries/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ticker: state.ticker,
+        period: state.period,
+        series: ["rsi", "macd", "bollinger"],
+      }),
+    })
+      .then(function (r) {
+        if (!r.ok) return r.json().then(function (e) { throw new Error(e.detail || "Error " + r.status); });
+        return r.json();
+      })
+      .then(function (data) {
+        state.techSeriesResult = data;
+        hide($techPanelLoading);
+        renderTechnicalsPanel();
+      })
+      .catch(function (err) {
+        hide($techPanelLoading);
+        $techPanelErrorMsg.textContent = "No se pudo cargar indicadores: " + err.message;
+        show($techPanelError);
+      });
+  }
+
+  function renderTechnicalsPanel() {
+    var series = (state.techSeriesResult && state.techSeriesResult.series) || {};
+    var computed = (state.analysisResult && state.analysisResult.data.computed) || {};
+    show($techPanelContent);
+    renderRsiChart(series.rsi || [], computed);
+    renderMacdChart(series.macd || []);
+    renderTechBollingerChart(series.bollinger || [], computed);
+  }
+
+  /* RSI chart with overbought/oversold zones */
+  function renderRsiChart(rsiSeries, computed) {
+    destroyChart("rsi");
+    if (!rsiSeries.length) return;
+
+    var labels = rsiSeries.map(function (d) { return d.date; });
+    var values = rsiSeries.map(function (d) { return d.value !== null ? +d.value.toFixed(1) : null; });
+
+    var rsi = computed.rsi;
+    var rsiVal = rsi ? rsi.latest : null;
+    var latestVal = rsiVal !== null ? rsiVal.toFixed(1) : "N/A";
+    var latestCls = rsiVal !== null ? (rsiVal > 70 ? "negative" : rsiVal < 30 ? "positive" : "") : "";
+    var latestLbl = rsiVal !== null ? (rsiVal > 70 ? "Sobrecompra" : rsiVal < 30 ? "Sobreventa" : "Neutral") : "";
+
+    $rsiStats.innerHTML =
+      '<div class="chart-stat"><span class="chart-stat-value ' + latestCls + '">' + escHtml(latestVal) + '</span><span class="chart-stat-label">' + escHtml(latestLbl) + '</span></div>';
+
+    var opts = baseChartOptions(function (v) { return v; }, labels);
+    opts.scales.y.min = 0;
+    opts.scales.y.max = 100;
+    opts.plugins.legend = {
+      display: true, position: "bottom",
+      labels: { color: "#586064", font: { family: "Inter", size: 11 }, boxWidth: 12, boxHeight: 2, padding: 16 },
+    };
+
+    /* Reference lines at 70 and 30 as constant datasets */
+    var overbought = values.map(function () { return 70; });
+    var oversold   = values.map(function () { return 30; });
+
+    charts.rsi = new Chart(document.getElementById("chart-rsi"), {
+      type: "line",
+      data: {
+        labels: sparseLabels(labels, 10),
+        datasets: [
+          {
+            label: "Sobrecompra (70)",
+            data: overbought,
+            borderColor: "rgba(186,27,36,0.35)",
+            borderWidth: 1,
+            borderDash: [4, 3],
+            pointRadius: 0,
+            fill: false,
+          },
+          {
+            label: "Sobreventa (30)",
+            data: oversold,
+            borderColor: "rgba(0,109,74,0.35)",
+            borderWidth: 1,
+            borderDash: [4, 3],
+            pointRadius: 0,
+            fill: false,
+          },
+          {
+            label: "RSI",
+            data: values,
+            borderColor: CHART_COLORS.line,
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.3,
+            fill: false,
+          },
+        ],
+      },
+      options: opts,
+    });
+  }
+
+  /* MACD chart: MACD line, signal line, histogram bars */
+  function renderMacdChart(macdSeries) {
+    destroyChart("macd");
+    if (!macdSeries.length) return;
+
+    var labels    = macdSeries.map(function (d) { return d.date; });
+    var macdLine  = macdSeries.map(function (d) { return d.macd !== null ? +d.macd.toFixed(3) : null; });
+    var signalLine= macdSeries.map(function (d) { return d.signal !== null ? +d.signal.toFixed(3) : null; });
+    var histogram = macdSeries.map(function (d) { return d.histogram !== null ? +d.histogram.toFixed(3) : null; });
+
+    var latestMacd = macdLine[macdLine.length - 1];
+    var latestSignal = signalLine[signalLine.length - 1];
+    var latestHist = histogram[histogram.length - 1];
+
+    $macdStats.innerHTML =
+      '<div class="chart-stat"><span class="chart-stat-value">' + escHtml(fmt(latestMacd, 3)) + '</span><span class="chart-stat-label">MACD</span></div>' +
+      '<div class="chart-stat"><span class="chart-stat-value">' + escHtml(fmt(latestSignal, 3)) + '</span><span class="chart-stat-label">Signal</span></div>' +
+      '<div class="chart-stat"><span class="chart-stat-value ' + (latestHist >= 0 ? "positive" : "negative") + '">' + escHtml(fmt(latestHist, 3)) + '</span><span class="chart-stat-label">Histograma</span></div>';
+
+    var histColors = histogram.map(function (v) {
+      return v >= 0 ? CHART_COLORS.positive : CHART_COLORS.negative;
+    });
+
+    var opts = baseChartOptions(function (v) { return v; }, labels);
+    opts.plugins.legend = {
+      display: true,
+      position: "bottom",
+      labels: { color: "#586064", font: { family: "Inter", size: 11 }, boxWidth: 12, boxHeight: 2, padding: 16 },
+    };
+
+    charts.macd = new Chart(document.getElementById("chart-macd"), {
+      type: "bar",
+      data: {
+        labels: sparseLabels(labels, 10),
+        datasets: [
+          {
+            label: "Histograma",
+            data: histogram,
+            backgroundColor: histColors,
+            borderWidth: 0,
+            borderRadius: 1,
+            order: 3,
+          },
+          {
+            label: "MACD",
+            data: macdLine,
+            type: "line",
+            borderColor: CHART_COLORS.line,
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.3,
+            fill: false,
+            order: 1,
+          },
+          {
+            label: "Signal",
+            data: signalLine,
+            type: "line",
+            borderColor: "#f59e0b",
+            borderWidth: 1.5,
+            pointRadius: 0,
+            tension: 0.3,
+            fill: false,
+            order: 2,
+          },
+        ],
+      },
+      options: opts,
+    });
+  }
+
+  /* Technicals Bollinger chart (same as metrics but separate canvas) */
+  function renderTechBollingerChart(bbSeries, computed) {
+    destroyChart("techBb");
+    if (!bbSeries.length) return;
+
+    var labels = bbSeries.map(function (d) { return d.date; });
+    var price  = bbSeries.map(function (d) { return d.price !== null ? +d.price.toFixed(2) : null; });
+    var upper  = bbSeries.map(function (d) { return d.upper !== null ? +d.upper.toFixed(2) : null; });
+    var mid    = bbSeries.map(function (d) { return d.middle !== null ? +d.middle.toFixed(2) : null; });
+    var lower  = bbSeries.map(function (d) { return d.lower !== null ? +d.lower.toFixed(2) : null; });
+
+    var bb = computed.bollinger;
+    if (bb) {
+      $techBbStats.innerHTML =
+        '<div class="chart-stat"><span class="chart-stat-value negative">' + escHtml(fmt(bb.upper, 2)) + '</span><span class="chart-stat-label">Superior</span></div>' +
+        '<div class="chart-stat"><span class="chart-stat-value">' + escHtml(fmt(bb.middle, 2)) + '</span><span class="chart-stat-label">Media</span></div>' +
+        '<div class="chart-stat"><span class="chart-stat-value positive">' + escHtml(fmt(bb.lower, 2)) + '</span><span class="chart-stat-label">Inferior</span></div>' +
+        '<div class="chart-stat"><span class="chart-stat-value">' + escHtml(fmt(bb.percent_b, 2)) + '</span><span class="chart-stat-label">%B</span></div>';
+    }
+
+    var opts = baseChartOptions(function (v) { return "$" + v; }, labels);
+    opts.plugins.legend = {
+      display: true, position: "bottom",
+      labels: { color: "#586064", font: { family: "Inter", size: 11 }, boxWidth: 12, boxHeight: 2, padding: 16 },
+    };
+    opts.plugins.tooltip.callbacks.label = function (ctx) {
+      return ctx.dataset.label + ": $" + ctx.parsed.y.toFixed(2);
+    };
+
+    charts.techBb = new Chart(document.getElementById("chart-tech-bb"), {
+      type: "line",
+      data: {
+        labels: sparseLabels(labels, 10),
+        datasets: [
+          { label: "Superior", data: upper, borderColor: CHART_COLORS.negative, borderWidth: 1.2, borderDash: [5, 3], pointRadius: 0, fill: false },
+          { label: "Media", data: mid, borderColor: CHART_COLORS.mid, borderWidth: 1.5, pointRadius: 0, fill: false },
+          { label: "Inferior", data: lower, borderColor: CHART_COLORS.positive, borderWidth: 1.2, borderDash: [5, 3], pointRadius: 0, fill: "-2", backgroundColor: CHART_COLORS.band },
+          { label: "Precio", data: price, borderColor: CHART_COLORS.line, borderWidth: 2, pointRadius: 0, tension: 0.2, fill: false },
+        ],
+      },
+      options: opts,
+    });
+  }
+
+  /* Volume chart (bar chart with SMA-20 average line) */
+  function renderVolumeChart(volumeSeries) {
+    destroyChart("volume");
+    if (!volumeSeries.length) {
+      $volumeStats.innerHTML = '<span class="chart-stat-label">Sin datos de volumen</span>';
+      return;
+    }
+
+    var labels = volumeSeries.map(function (d) { return d.date; });
+    var values = volumeSeries.map(function (d) { return d.value !== null ? +d.value : null; });
+
+    /* SMA-20 del volumen */
+    var smaWindow = 20;
+    var sma = values.map(function (_, i) {
+      if (i < smaWindow - 1) return null;
+      var sum = 0;
+      for (var j = i - smaWindow + 1; j <= i; j++) sum += (values[j] || 0);
+      return sum / smaWindow;
+    });
+
+    /* Stats */
+    var validVals = values.filter(function (v) { return v !== null; });
+    var avgVol = validVals.length ? validVals.reduce(function (a, b) { return a + b; }, 0) / validVals.length : 0;
+    var latestVol = validVals.length ? validVals[validVals.length - 1] : 0;
+
+    $volumeStats.innerHTML =
+      '<div class="chart-stat">' +
+        '<span class="chart-stat-value">' + escHtml(fmtCompact(latestVol)) + '</span>' +
+        '<span class="chart-stat-label">Último</span>' +
+      '</div>' +
+      '<div class="chart-stat">' +
+        '<span class="chart-stat-value">' + escHtml(fmtCompact(avgVol)) + '</span>' +
+        '<span class="chart-stat-label">Promedio</span>' +
+      '</div>';
+
+    var opts = baseChartOptions(function (v) { return fmtCompact(v); }, labels);
+    opts.scales.y.min = 0;
+    opts.plugins.legend = {
+      display: true,
+      position: "bottom",
+      labels: {
+        color: "#586064",
+        font: { family: "Inter", size: 11 },
+        boxWidth: 12,
+        boxHeight: 2,
+        padding: 16,
+      },
+    };
+    opts.plugins.tooltip.callbacks.label = function (ctx) {
+      return ctx.dataset.label + ": " + fmtCompact(ctx.parsed.y);
+    };
+
+    charts.volume = new Chart(document.getElementById("chart-volume"), {
+      type: "bar",
+      data: {
+        labels: sparseLabels(labels, 10),
+        datasets: [
+          {
+            label: "Volumen",
+            data: values,
+            backgroundColor: CHART_COLORS.volume,
+            borderWidth: 0,
+            borderRadius: 1,
+            order: 2,
+          },
+          {
+            label: "SMA 20d",
+            data: sma,
+            type: "line",
+            borderColor: CHART_COLORS.volumeAvg,
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.3,
+            fill: false,
+            order: 1,
+          },
+        ],
+      },
+      options: opts,
+    });
+  }
+
+  /* Format large numbers compactly: 1.2M, 350K, etc. */
+  function fmtCompact(n) {
+    if (n === null || n === undefined) return "N/A";
+    if (n >= 1e9) return (n / 1e9).toFixed(1) + "B";
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
+    if (n >= 1e3) return (n / 1e3).toFixed(0) + "K";
+    return String(Math.round(n));
   }
 
   /* ─── Rail Navigation Events ─── */
@@ -711,6 +1130,14 @@
   });
 
   $errorRetry.addEventListener("click", runAnalysis);
+
+  /* Empty state chip clicks */
+  document.querySelectorAll(".empty-chip[data-ticker]").forEach(function (chip) {
+    chip.addEventListener("click", function () {
+      $ticker.value = chip.dataset.ticker;
+      runAnalysis();
+    });
+  });
 
   /* ─── Init ─── */
   $ticker.focus();
