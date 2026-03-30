@@ -1060,6 +1060,45 @@ legend { display: block; }
 .chart-stat-value.positive { color: var(--secondary); }
 .chart-stat-value.negative { color: var(--tertiary); }
 
+.chart-toggle {
+  display: flex;
+  gap: 2px;
+  background: var(--surface-container-low);
+  border-radius: var(--radius-lg);
+  padding: 2px;
+}
+
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 24px;
+  border-radius: var(--radius);
+  border: none;
+  background: transparent;
+  color: var(--outline);
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease-out);
+}
+
+.toggle-btn:hover {
+  color: var(--on-surface);
+}
+
+.toggle-btn--active {
+  background: var(--surface-container-lowest);
+  color: var(--on-surface);
+  box-shadow: 0 1px 3px rgba(43,52,55,0.08);
+}
+
+.chart-zoom-hint {
+  font-size: var(--label-sm);
+  color: var(--outline-variant);
+  text-align: right;
+  margin-top: var(--s-2);
+}
+
 .chart-wrap {
   position: relative;
   height: 200px;

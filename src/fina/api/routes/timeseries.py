@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException
 from fina.api.schemas import TimeseriesRequest, TimeseriesResponse
 from fina.core.exceptions import FetcherError, MetricsError, ValidationError
 from fina.data.cleaner import clean_prices
-from fina.data.fetcher import fetch_close_prices, fetch_volume
+from fina.data.fetcher import fetch_close_prices, fetch_ohlc, fetch_volume
 from fina.metrics.returns import compute_returns
 from fina.metrics.technical import compute_bollinger_bands, compute_macd, compute_rsi
 from fina.metrics.volatility import rolling_volatility
@@ -85,6 +85,14 @@ async def analysis_timeseries(request: TimeseriesRequest) -> TimeseriesResponse:
             else:
                 series["volume"] = []
                 warnings.append("Volume data not available for this ticker.")
+
+        if "ohlc" in requested:
+            ohlc_df = fetch_ohlc(request.ticker, period=request.period)
+            if not ohlc_df.empty:
+                series["ohlc"] = _series_to_list(ohlc_df)
+            else:
+                series["ohlc"] = []
+                warnings.append("OHLC data not available for this ticker.")
 
     except (FetcherError, MetricsError, ValidationError) as exc:
         raise HTTPException(status_code=422, detail=str(exc))

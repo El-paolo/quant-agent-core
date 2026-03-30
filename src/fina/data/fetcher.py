@@ -284,3 +284,33 @@ def fetch_volume(
 
     volume: pd.Series = df["Volume"].rename("Volume")
     return volume.dropna()
+
+
+def fetch_ohlc(
+    ticker: str,
+    start: str | date | None = None,
+    end: str | date | None = None,
+    period: str | None = "1y",
+) -> pd.DataFrame:
+    """
+    Fetch OHLC (Open, High, Low, Close) data for a given ticker.
+
+    Uses the same cached DataFrame as other fetch functions.
+
+    Returns:
+        ``pd.DataFrame`` with columns [open, high, low, close] (lowercase)
+        and a ``DatetimeIndex``.  Returns an empty DataFrame if OHLC
+        columns are not available.
+
+    Raises:
+        FetcherError: On invalid inputs, network failures, or empty responses.
+    """
+    df = _fetch_history(ticker, start=start, end=end, period=period)
+
+    required = {"Open", "High", "Low", "Close"}
+    if not required.issubset(df.columns):
+        return pd.DataFrame(columns=["open", "high", "low", "close"])
+
+    ohlc = df[["Open", "High", "Low", "Close"]].copy()
+    ohlc.columns = ["open", "high", "low", "close"]
+    return ohlc.dropna()

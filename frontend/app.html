@@ -19,6 +19,10 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"
           integrity="sha384-JUh163oCRItcbPme8pYnROHQMC6fNKTBWtRG3I3I0erJkzNgL7uxKlNwcrcFKeqF"
           crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"
+          crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"
+          crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -276,6 +280,36 @@
               <div class="ratios-grid" id="ratios-grid"></div>
             </div>
 
+          </div>
+
+          <!-- Precio (Line / Candlestick toggle) -->
+          <div class="chart-section">
+            <div class="chart-section-header">
+              <div>
+                <span class="chart-title">Precio</span>
+                <span class="chart-subtitle" id="price-chart-subtitle">Cierre ajustado</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--s-3)">
+                <div class="chart-stats" id="price-stats"></div>
+                <div class="chart-toggle" id="price-chart-toggle">
+                  <button class="toggle-btn toggle-btn--active" data-mode="candle" title="Candlestick">
+                    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <line x1="5" y1="2" x2="5" y2="14"/><rect x="3" y="5" width="4" height="5" rx="0.5" fill="currentColor"/>
+                      <line x1="12" y1="2" x2="12" y2="14"/><rect x="10" y="4" width="4" height="6" rx="0.5"/>
+                    </svg>
+                  </button>
+                  <button class="toggle-btn" data-mode="line" title="Línea">
+                    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <polyline points="1,12 5,6 9,9 15,3"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="chart-wrap chart-wrap--tall">
+              <canvas id="chart-price" aria-label="Gráfico de precio"></canvas>
+            </div>
+            <p class="chart-zoom-hint">Scroll para zoom · Arrastra para pan · Doble click para resetear</p>
           </div>
 
           <!-- Bollinger Bands -->

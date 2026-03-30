@@ -5,6 +5,35 @@
 (function () {
   "use strict";
 
+  /* ─── Register zoom plugin ─── */
+  if (window.ChartZoom) Chart.register(window.ChartZoom);
+
+  /* ─── Candlestick wick plugin (draws high/low lines on floating bars) ─── */
+  var candleWickPlugin = {
+    id: "candleWick",
+    afterDatasetsDraw: function (chart) {
+      var meta = chart.getDatasetMeta(0);
+      if (!meta || !meta.data || !chart.data.datasets[0]._ohlc) return;
+      var ctx = chart.ctx;
+      var ohlc = chart.data.datasets[0]._ohlc;
+      ctx.save();
+      ctx.lineWidth = 1.2;
+      meta.data.forEach(function (bar, i) {
+        if (!ohlc[i]) return;
+        var high = chart.scales.y.getPixelForValue(ohlc[i].high);
+        var low  = chart.scales.y.getPixelForValue(ohlc[i].low);
+        var x    = bar.x;
+        ctx.strokeStyle = ohlc[i].close >= ohlc[i].open ? CHART_COLORS.wickUp : CHART_COLORS.wickDn;
+        ctx.beginPath();
+        ctx.moveTo(x, high);
+        ctx.lineTo(x, low);
+        ctx.stroke();
+      });
+      ctx.restore();
+    },
+  };
+  Chart.register(candleWickPlugin);
+
   /* ─── Constants ─── */
   var ALL_METRICS = [
     "returns", "volatility", "rolling_volatility", "sharpe",
@@ -24,6 +53,10 @@
     fill:     "rgba(26,86,219,0.10)",  /* indigo fill under vol line */
     volume:   "rgba(107,114,128,0.35)",/* gray bars for volume */
     volumeAvg:"#f59e0b",              /* amber line for avg volume */
+    candleUp:  "#006d4a",             /* green body — close > open */
+    candleDn:  "#ba1b24",             /* red body — close < open */
+    wickUp:    "#006d4a",
+    wickDn:    "#ba1b24",
   };
 
   /* ─── Application State ─── */
@@ -42,7 +75,8 @@
   };
 
   /* Chart instances — destroyed before re-creating */
-  var charts = { vol: null, bb: null, volume: null, rsi: null, macd: null, techBb: null };
+  var charts = { vol: null, bb: null, volume: null, rsi: null, macd: null, techBb: null, price: null };
+  var priceChartMode = "candle"; /* "candle" or "line" */
 
   /* ─── DOM refs ─── */
   var $ticker       = document.getElementById("ticker-input");
@@ -82,6 +116,8 @@
   var $volStats            = document.getElementById("vol-stats");
   var $bbStats             = document.getElementById("bb-stats");
   var $volumeStats         = document.getElementById("volume-stats");
+  var $priceStats          = document.getElementById("price-stats");
+  var $priceChartSubtitle  = document.getElementById("price-chart-subtitle");
   var $returnsStatsGrid    = document.getElementById("returns-stats-grid");
   var $ratiosGrid          = document.getElementById("ratios-grid");
 
@@ -502,7 +538,7 @@
       body: JSON.stringify({
         ticker: state.ticker,
         period: state.period,
-        series: ["rolling_volatility", "bollinger", "volume"],
+        series: ["rolling_volatility", "bollinger", "volume", "ohlc"],
       }),
     })
       .then(function (r) {
@@ -527,6 +563,7 @@
 
     show($metricsPanelContent);
 
+    renderPriceChart(series.ohlc || [], series.bollinger || []);
     renderVolChart(series.rolling_volatility || [], computed);
     renderReturnsStats(computed);
     renderRatios(computed);
@@ -561,6 +598,14 @@
             },
           },
         },
+        zoom: {
+          pan: { enabled: true, mode: "x" },
+          zoom: {
+            wheel: { enabled: true },
+            pinch: { enabled: true },
+            mode: "x",
+          },
+        },
       },
       scales: {
         x: {
@@ -590,6 +635,117 @@
     return arr.map(function (v, i) { return i % step === 0 ? v : ""; });
   }
 
+  /* ─── Price chart (Candlestick / Line toggle) ─── */
+  function renderPriceChart(ohlcSeries, bbSeries) {
+    destroyChart("price");
+    if (!ohlcSeries.length && !bbSeries.length) return;
+
+    /* Extract close from ohlc or bollinger as fallback */
+    var source = ohlcSeries.length ? ohlcSeries : bbSeries;
+    var labels = source.map(function (d) { return d.date; });
+
+    /* Stats */
+    var latestClose = ohlcSeries.length ? ohlcSeries[ohlcSeries.length - 1].close : (bbSeries.length ? bbSeries[bbSeries.length - 1].price : null);
+    var firstClose  = ohlcSeries.length ? ohlcSeries[0].close : (bbSeries.length ? bbSeries[0].price : null);
+    var changePct = (latestClose && firstClose) ? ((latestClose - firstClose) / firstClose * 100) : null;
+    var changeCls = changePct !== null ? (changePct >= 0 ? "positive" : "negative") : "";
+
+    $priceStats.innerHTML =
+      '<div class="chart-stat">' +
+        '<span class="chart-stat-value">$' + escHtml(latestClose !== null ? latestClose.toFixed(2) : "N/A") + '</span>' +
+        '<span class="chart-stat-label">Último</span>' +
+      '</div>' +
+      (changePct !== null ?
+        '<div class="chart-stat"><span class="chart-stat-value ' + changeCls + '">' +
+          escHtml((changePct >= 0 ? "+" : "") + changePct.toFixed(2) + "%") +
+        '</span><span class="chart-stat-label">Período</span></div>' : "");
+
+    if (priceChartMode === "candle" && ohlcSeries.length) {
+      renderCandlestick(ohlcSeries, labels);
+    } else {
+      renderPriceLine(ohlcSeries.length ? ohlcSeries : bbSeries, labels);
+    }
+  }
+
+  function renderCandlestick(ohlcSeries, labels) {
+    var ohlcData = ohlcSeries.map(function (d) {
+      return { open: d.open, high: d.high, low: d.low, close: d.close };
+    });
+
+    /* Floating bar: y = [min(open,close), max(open,close)] for body */
+    var bodies = ohlcData.map(function (d) {
+      return [Math.min(d.open, d.close), Math.max(d.open, d.close)];
+    });
+
+    var barColors = ohlcData.map(function (d) {
+      return d.close >= d.open ? CHART_COLORS.candleUp : CHART_COLORS.candleDn;
+    });
+
+    var opts = baseChartOptions(function (v) { return "$" + v.toFixed(0); }, labels);
+    opts.plugins.tooltip.callbacks.label = function (ctx) {
+      var i = ctx.dataIndex;
+      var d = ohlcData[i];
+      if (!d) return "";
+      return [
+        "O: $" + d.open.toFixed(2),
+        "H: $" + d.high.toFixed(2),
+        "L: $" + d.low.toFixed(2),
+        "C: $" + d.close.toFixed(2),
+      ];
+    };
+    opts.interaction.mode = "nearest";
+
+    charts.price = new Chart(document.getElementById("chart-price"), {
+      type: "bar",
+      data: {
+        labels: sparseLabels(labels, 12),
+        datasets: [{
+          data: bodies,
+          backgroundColor: barColors,
+          borderColor: barColors,
+          borderWidth: 1,
+          borderSkipped: false,
+          barPercentage: 0.6,
+          categoryPercentage: 0.9,
+          _ohlc: ohlcData,
+        }],
+      },
+      options: opts,
+    });
+
+    $priceChartSubtitle.textContent = "OHLC Candlestick";
+  }
+
+  function renderPriceLine(series, labels) {
+    var prices = series.map(function (d) {
+      return d.close !== undefined ? +d.close.toFixed(2) : (d.price !== undefined ? +d.price.toFixed(2) : null);
+    });
+
+    var opts = baseChartOptions(function (v) { return "$" + v; }, labels);
+    opts.plugins.tooltip.callbacks.label = function (ctx) {
+      return "Precio: $" + ctx.parsed.y.toFixed(2);
+    };
+
+    charts.price = new Chart(document.getElementById("chart-price"), {
+      type: "line",
+      data: {
+        labels: sparseLabels(labels, 10),
+        datasets: [{
+          data: prices,
+          borderColor: CHART_COLORS.line,
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.2,
+          fill: true,
+          backgroundColor: CHART_COLORS.fill,
+        }],
+      },
+      options: opts,
+    });
+
+    $priceChartSubtitle.textContent = "Cierre ajustado";
+  }
+
   /* Rolling Volatility chart */
   function renderVolChart(volSeries, computed) {
     destroyChart("vol");
@@ -609,6 +765,9 @@
 
     var opts = baseChartOptions(function (v) { return v + "%"; }, labels);
     opts.scales.y.min = 0;
+    opts.plugins.tooltip.callbacks.label = function (ctx) {
+      return "Volatilidad: " + ctx.parsed.y.toFixed(2) + "%";
+    };
 
     charts.vol = new Chart(document.getElementById("chart-vol"), {
       type: "line",
@@ -1131,11 +1290,36 @@
 
   $errorRetry.addEventListener("click", runAnalysis);
 
+  /* Price chart toggle (candle / line) */
+  document.querySelectorAll("#price-chart-toggle .toggle-btn").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var mode = btn.dataset.mode;
+      if (mode === priceChartMode) return;
+      priceChartMode = mode;
+      document.querySelectorAll("#price-chart-toggle .toggle-btn").forEach(function (b) {
+        b.classList.toggle("toggle-btn--active", b.dataset.mode === mode);
+      });
+      /* Re-render if data available */
+      var series = (state.timeseriesResult && state.timeseriesResult.series) || {};
+      if (series.ohlc || series.bollinger) {
+        renderPriceChart(series.ohlc || [], series.bollinger || []);
+      }
+    });
+  });
+
   /* Empty state chip clicks */
   document.querySelectorAll(".empty-chip[data-ticker]").forEach(function (chip) {
     chip.addEventListener("click", function () {
       $ticker.value = chip.dataset.ticker;
       runAnalysis();
+    });
+  });
+
+  /* Double-click on any chart canvas resets zoom */
+  document.querySelectorAll("canvas[id^='chart-']").forEach(function (canvas) {
+    canvas.addEventListener("dblclick", function () {
+      var chartInstance = Chart.getChart(canvas);
+      if (chartInstance && chartInstance.resetZoom) chartInstance.resetZoom();
     });
   });
 
