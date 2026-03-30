@@ -574,6 +574,51 @@
   /* Chart.js shared config.
      fullDates: the complete array of date strings — used so tooltips
      always show the real date even when the x-axis labels are sparse. */
+  /**
+   * Auto-scale Y axis to fit visible data after zoom/pan on X axis.
+   * Scans all datasets for values within the current X viewport,
+   * then sets y.min / y.max with a 5% padding.
+   */
+  function autoScaleY(chart) {
+    var xScale = chart.scales.x;
+    var yScale = chart.scales.y;
+    if (!xScale || !yScale) return;
+
+    var minIdx = Math.max(0, Math.floor(xScale.min));
+    var maxIdx = Math.min(xScale.max, chart.data.labels.length - 1);
+    if (maxIdx <= minIdx) return;
+
+    var yMin = Infinity;
+    var yMax = -Infinity;
+
+    chart.data.datasets.forEach(function (ds) {
+      for (var i = minIdx; i <= maxIdx; i++) {
+        var val = ds.data[i];
+        if (val === null || val === undefined) continue;
+        /* Floating bar: val is [low, high] */
+        if (Array.isArray(val)) {
+          if (val[0] < yMin) yMin = val[0];
+          if (val[1] > yMax) yMax = val[1];
+          /* Also check OHLC wicks if available */
+          if (ds._ohlc && ds._ohlc[i]) {
+            if (ds._ohlc[i].low < yMin) yMin = ds._ohlc[i].low;
+            if (ds._ohlc[i].high > yMax) yMax = ds._ohlc[i].high;
+          }
+        } else {
+          if (val < yMin) yMin = val;
+          if (val > yMax) yMax = val;
+        }
+      }
+    });
+
+    if (yMin === Infinity || yMax === -Infinity) return;
+
+    var padding = (yMax - yMin) * 0.05 || 1;
+    yScale.options.min = yMin - padding;
+    yScale.options.max = yMax + padding;
+    chart.update("none");
+  }
+
   function baseChartOptions(yTickFmt, fullDates) {
     return {
       responsive: true,
@@ -599,11 +644,16 @@
           },
         },
         zoom: {
-          pan: { enabled: true, mode: "x" },
+          pan: {
+            enabled: true,
+            mode: "xy",
+            onPanComplete: function (ctx) { autoScaleY(ctx.chart); },
+          },
           zoom: {
-            wheel: { enabled: true },
+            wheel: { enabled: true, speed: 0.1 },
             pinch: { enabled: true },
-            mode: "x",
+            mode: "xy",
+            onZoomComplete: function (ctx) { autoScaleY(ctx.chart); },
           },
         },
       },
@@ -1319,7 +1369,13 @@
   document.querySelectorAll("canvas[id^='chart-']").forEach(function (canvas) {
     canvas.addEventListener("dblclick", function () {
       var chartInstance = Chart.getChart(canvas);
-      if (chartInstance && chartInstance.resetZoom) chartInstance.resetZoom();
+      if (!chartInstance) return;
+      /* Reset Y-axis auto-scale limits before resetting zoom */
+      if (chartInstance.scales.y) {
+        delete chartInstance.scales.y.options.min;
+        delete chartInstance.scales.y.options.max;
+      }
+      if (chartInstance.resetZoom) chartInstance.resetZoom();
     });
   });
 
