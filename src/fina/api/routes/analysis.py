@@ -1,5 +1,7 @@
 """POST /analysis/ — run financial metrics pipeline for a ticker."""
 
+import asyncio
+
 from fastapi import APIRouter, HTTPException
 
 from fina.api.dependencies import SettingsDep
@@ -21,14 +23,15 @@ async def analyze(
     Raises HTTP 422 for bad input or data issues, 500 for unexpected errors.
     """
     try:
-        result = run_analysis(
+        result = await asyncio.to_thread(
+            run_analysis,
             ticker=request.ticker,
             period=request.period,
             metrics=request.metrics,
         )
     except (FetcherError, MetricsError, ValidationError) as exc:
         raise HTTPException(status_code=422, detail=str(exc))
-    except Exception as exc:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal analysis error")
 
     return AnalysisResponse(

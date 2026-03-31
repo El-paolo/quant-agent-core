@@ -1,5 +1,7 @@
 """POST /analysis/timeseries/ — return full time-series data for charting."""
 
+import asyncio
+
 from fastapi import APIRouter, HTTPException
 
 from fina.api.schemas import TimeseriesRequest, TimeseriesResponse
@@ -32,27 +34,13 @@ def _series_to_list(s) -> list[dict]:
     return rows
 
 
-@router.post("/timeseries/", response_model=TimeseriesResponse)
-async def analysis_timeseries(request: TimeseriesRequest) -> TimeseriesResponse:
-    """
-    Fetch prices and return full time-series data for the requested indicators.
-
-    Unlike POST /analysis/ (which returns only the latest scalar value per metric),
-    this endpoint returns the complete time series so the frontend can render charts.
-
-    Raises HTTP 422 for bad input or data issues, 500 for unexpected errors.
-    """
-    try:
-        prices = fetch_close_prices(request.ticker, period=request.period)
-        prices = clean_prices(prices)
-    except (FetcherError, ValidationError) as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
-    except Exception:
-        raise HTTPException(status_code=500, detail="Internal timeseries error")
+def _compute_timeseries(ticker: str, period: str, requested: set[str]) -> dict:
+    """Synchronous helper — runs in a thread to avoid blocking the event loop."""
+    prices = fetch_close_prices(ticker, period=period)
+    prices = clean_prices(prices)
 
     warnings: list[str] = []
     series: dict = {}
-    requested = set(request.series)
 
     # Returns are needed by rolling_volatility; compute once, gracefully
     returns_series = None
@@ -113,7 +101,7 @@ async def analysis_timeseries(request: TimeseriesRequest) -> TimeseriesResponse:
 
     if "volume" in requested:
         try:
-            vol_series = fetch_volume(request.ticker, period=request.period)
+            vol_series = fetch_volume(ticker, period=period)
             if not vol_series.empty:
                 series["volume"] = _series_to_list(vol_series)
             else:
@@ -125,7 +113,7 @@ async def analysis_timeseries(request: TimeseriesRequest) -> TimeseriesResponse:
 
     if "ohlc" in requested:
         try:
-            ohlc_df = fetch_ohlc(request.ticker, period=request.period)
+            ohlc_df = fetch_ohlc(ticker, period=period)
             if not ohlc_df.empty:
                 series["ohlc"] = _series_to_list(ohlc_df)
             else:
@@ -135,9 +123,31 @@ async def analysis_timeseries(request: TimeseriesRequest) -> TimeseriesResponse:
             series["ohlc"] = []
             warnings.append(f"OHLC unavailable: {exc}")
 
+    return {"series": series, "warnings": warnings}
+
+
+@router.post("/timeseries/", response_model=TimeseriesResponse)
+async def analysis_timeseries(request: TimeseriesRequest) -> TimeseriesResponse:
+    """
+    Fetch prices and return full time-series data for the requested indicators.
+
+    Unlike POST /analysis/ (which returns only the latest scalar value per metric),
+    this endpoint returns the complete time series so the frontend can render charts.
+
+    Raises HTTP 422 for bad input or data issues, 500 for unexpected errors.
+    """
+    try:
+        result = await asyncio.to_thread(
+            _compute_timeseries, request.ticker, request.period, set(request.series),
+        )
+    except (FetcherError, ValidationError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal timeseries error")
+
     return TimeseriesResponse(
         ticker=request.ticker,
         period=request.period,
-        series=series,
-        warnings=warnings,
+        series=result["series"],
+        warnings=result["warnings"],
     )

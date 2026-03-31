@@ -1,5 +1,7 @@
 """POST /agent/summarize/ — fetch news and summarize with the configured LLM."""
 
+import asyncio
+
 from fastapi import APIRouter, HTTPException
 
 from fina.agent.news import fetch_news_headlines
@@ -9,6 +11,13 @@ from fina.api.schemas import AgentRequest, AgentResponse
 from fina.core.exceptions import ConfigError, FetcherError
 
 router = APIRouter(tags=["agent"])
+
+
+def _run_summarize(ticker: str, settings: object, prompt: str | None) -> tuple:
+    """Synchronous helper — runs in a thread to avoid blocking the event loop."""
+    headlines = fetch_news_headlines(ticker, settings)
+    summary = summarize_news(ticker, headlines, settings, prompt=prompt)
+    return headlines, summary
 
 
 @router.post("/summarize/", response_model=AgentResponse)
@@ -28,12 +37,8 @@ async def agent_summarize(
       500 — unexpected internal error
     """
     try:
-        headlines = fetch_news_headlines(request.ticker, settings)
-        summary = summarize_news(
-            request.ticker,
-            headlines,
-            settings,
-            prompt=request.summary_prompt,
+        headlines, summary = await asyncio.to_thread(
+            _run_summarize, request.ticker, settings, request.summary_prompt,
         )
     except ConfigError as exc:
         raise HTTPException(status_code=503, detail=str(exc))

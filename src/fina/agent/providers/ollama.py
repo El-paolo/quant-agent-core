@@ -39,6 +39,11 @@ class OllamaProvider:
         self._model = model
         self._timeout = timeout
         self._system_prompt = system_prompt
+        self._client = httpx.Client(timeout=self._timeout)
+
+    def close(self) -> None:
+        """Close the underlying HTTP connection pool."""
+        self._client.close()
 
     # ------------------------------------------------------------------
     # LLMProvider protocol implementation
@@ -70,11 +75,10 @@ class OllamaProvider:
         }
 
         try:
-            with httpx.Client(timeout=self._timeout) as client:
-                response = client.post(
-                    f"{self._base_url}/api/chat",
-                    json=payload,
-                )
+            response = self._client.post(
+                f"{self._base_url}/api/chat",
+                json=payload,
+            )
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:
             raise FetcherError(
@@ -103,8 +107,7 @@ class OllamaProvider:
     def is_available(self) -> bool:
         """Return True if the Ollama server is reachable."""
         try:
-            with httpx.Client(timeout=3.0) as client:
-                r = client.get(f"{self._base_url}/api/tags")
+            r = self._client.get(f"{self._base_url}/api/tags", timeout=3.0)
             return r.status_code == 200
         except Exception:
             return False
