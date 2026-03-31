@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="FINA — Herramienta de análisis financiero cuantitativo. Métricas, indicadores técnicos y resumen IA en tiempo real." />
+  <meta name="theme-color" content="#2b3437" />
+  <meta property="og:title" content="FINA — Quantitative Financial Analysis" />
+  <meta property="og:description" content="Análisis financiero con métricas cuantitativas, indicadores técnicos, y resumen IA." />
+  <meta property="og:type" content="website" />
+  <title>FINA — Workspace</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%232b3437'/><text x='4' y='23' font-family='system-ui' font-weight='900' font-size='18' fill='%23f8f9fa'>F</text></svg>" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="/static/css/app.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"
+          integrity="sha384-JUh163oCRItcbPme8pYnROHQMC6fNKTBWtRG3I3I0erJkzNgL7uxKlNwcrcFKeqF"
+          crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"
+          crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"
+          crossorigin="anonymous"></script>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════
+       COMMAND BAR — Always visible, top
+  ═══════════════════════════════════════════ -->
+  <header class="command-bar" id="command-bar">
+    <a href="/" class="cb-logo" aria-label="FINA home">FINA</a>
+
+    <div class="cb-controls">
+      <input
+        type="text"
+        id="ticker-input"
+        class="cb-input"
+        placeholder="AAPL"
+        maxlength="20"
+        autocomplete="off"
+        spellcheck="false"
+        aria-label="Ticker symbol"
+      />
+
+      <select id="period-select" class="cb-select" aria-label="Período de análisis">
+        <option value="1d">1D</option>
+        <option value="5d">5D</option>
+        <option value="1mo">1M</option>
+        <option value="3mo">3M</option>
+        <option value="6mo">6M</option>
+        <option value="1y" selected>1Y</option>
+        <option value="2y">2Y</option>
+        <option value="5y">5Y</option>
+        <option value="max">MAX</option>
+      </select>
+
+      <button id="analyze-btn" class="cb-btn" type="button">
+        <span class="cb-btn-label">Analizar</span>
+        <span class="cb-btn-arrow">→</span>
+      </button>
+    </div>
+
+    <div class="cb-status">
+      <span class="health-dot" id="health-dot" title="API status"></span>
+      <span class="health-label" id="health-label">—</span>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════
+       APP SHELL — Rail + Canvas
+  ═══════════════════════════════════════════ -->
+  <div class="app-shell">
+
+    <!-- LEFT RAIL -->
+    <aside class="rail" id="rail">
+      <nav class="rail-nav" aria-label="Workspace navigation">
+        <button class="rail-link rail-link--active" data-panel="overview" aria-current="page">
+          <svg class="rail-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="3" width="6" height="6" rx="1"/>
+            <rect x="11" y="3" width="6" height="6" rx="1"/>
+            <rect x="3" y="11" width="6" height="6" rx="1"/>
+            <rect x="11" y="11" width="6" height="6" rx="1"/>
+          </svg>
+          <span class="rail-label">Overview</span>
+        </button>
+        <button class="rail-link" data-panel="metrics">
+          <svg class="rail-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M3 17V8l4-5 4 6 3-3 3 4v7z"/>
+          </svg>
+          <span class="rail-label">Métricas</span>
+        </button>
+        <button class="rail-link" data-panel="technicals">
+          <svg class="rail-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M2 10h3l2-6 3 12 2-8 2 4h4"/>
+          </svg>
+          <span class="rail-label">Técnicos</span>
+        </button>
+        <button class="rail-link" data-panel="news">
+          <svg class="rail-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="3" width="14" height="14" rx="2"/>
+            <line x1="6" y1="7" x2="14" y2="7"/>
+            <line x1="6" y1="10" x2="14" y2="10"/>
+            <line x1="6" y1="13" x2="10" y2="13"/>
+          </svg>
+          <span class="rail-label">Noticias & IA</span>
+        </button>
+        <!-- Chat panel: hidden until backend multi-turn endpoint is ready -->
+        <button class="rail-link" data-panel="methodology">
+          <svg class="rail-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M4 3h9l4 4v10a1 1 0 01-1 1H4a1 1 0 01-1-1V4a1 1 0 011-1z"/>
+            <polyline points="12 3 12 8 17 8"/>
+            <line x1="6" y1="11" x2="14" y2="11"/>
+            <line x1="6" y1="14" x2="11" y2="14"/>
+          </svg>
+          <span class="rail-label">Metodología</span>
+        </button>
+      </nav>
+
+      <div class="rail-divider"></div>
+
+      <!-- Parameters -->
+      <div class="rail-params">
+        <button class="params-toggle" id="params-toggle" aria-expanded="true">
+          <span class="params-toggle-label">Parámetros</span>
+          <svg class="params-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <polyline points="4 6 8 10 12 6"/>
+          </svg>
+        </button>
+        <div class="params-body" id="params-body">
+          <fieldset class="params-group">
+            <legend class="params-legend">Métricas</legend>
+            <label class="param-check"><input type="checkbox" value="returns" checked /><span>Returns</span></label>
+            <label class="param-check"><input type="checkbox" value="volatility" checked /><span>Volatility</span></label>
+            <label class="param-check"><input type="checkbox" value="rolling_volatility" checked /><span>Rolling Vol</span></label>
+            <label class="param-check"><input type="checkbox" value="sharpe" checked /><span>Sharpe</span></label>
+            <label class="param-check"><input type="checkbox" value="sortino" checked /><span>Sortino</span></label>
+            <label class="param-check"><input type="checkbox" value="rsi" checked /><span>RSI</span></label>
+            <label class="param-check"><input type="checkbox" value="macd" checked /><span>MACD</span></label>
+            <label class="param-check"><input type="checkbox" value="bollinger" checked /><span>Bollinger</span></label>
+            <label class="param-check"><input type="checkbox" value="beta" checked /><span>Beta</span></label>
+          </fieldset>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN CANVAS -->
+    <main class="canvas" id="canvas">
+
+      <!-- EMPTY STATE -->
+      <div class="empty-state" id="empty-state">
+        <div class="empty-icon" aria-hidden="true">
+          <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.2">
+            <rect x="6" y="6" width="36" height="36" rx="4"/>
+            <path d="M6 32l10-8 8 6 8-10 10 8"/>
+            <circle cx="16" cy="18" r="3"/>
+          </svg>
+        </div>
+        <p class="empty-title">Selecciona un activo para analizar</p>
+        <div class="empty-chips">
+          <button class="empty-chip" data-ticker="AAPL">AAPL</button>
+          <button class="empty-chip" data-ticker="MSFT">MSFT</button>
+          <button class="empty-chip" data-ticker="NVDA">NVDA</button>
+          <button class="empty-chip" data-ticker="TSLA">TSLA</button>
+          <button class="empty-chip" data-ticker="BTC-USD">BTC-USD</button>
+          <button class="empty-chip" data-ticker="AMZN">AMZN</button>
+        </div>
+        <p class="empty-hint">o escribe un ticker en la barra superior</p>
+      </div>
+
+      <!-- LOADING STATE -->
+      <div class="loading-state hidden" id="loading-state">
+        <div class="metrics-grid">
+          <div class="metric-card skeleton-card"><div class="skeleton sk-value"></div><div class="skeleton sk-label"></div></div>
+          <div class="metric-card skeleton-card"><div class="skeleton sk-value"></div><div class="skeleton sk-label"></div></div>
+          <div class="metric-card skeleton-card"><div class="skeleton sk-value"></div><div class="skeleton sk-label"></div></div>
+          <div class="metric-card skeleton-card"><div class="skeleton sk-value"></div><div class="skeleton sk-label"></div></div>
+          <div class="metric-card skeleton-card"><div class="skeleton sk-value"></div><div class="skeleton sk-label"></div></div>
+          <div class="metric-card skeleton-card"><div class="skeleton sk-value"></div><div class="skeleton sk-label"></div></div>
+          <div class="metric-card skeleton-card"><div class="skeleton sk-value"></div><div class="skeleton sk-label"></div></div>
+          <div class="metric-card skeleton-card"><div class="skeleton sk-value"></div><div class="skeleton sk-label"></div></div>
+        </div>
+        <div class="summary-skeleton">
+          <div class="skeleton sk-title"></div>
+          <div class="skeleton sk-line"></div>
+          <div class="skeleton sk-line"></div>
+          <div class="skeleton sk-line sk-short"></div>
+        </div>
+      </div>
+
+      <!-- ERROR STATE -->
+      <div class="error-state hidden" id="error-state">
+        <div class="error-card">
+          <div class="error-tag">Error</div>
+          <p class="error-message" id="error-message"></p>
+          <button class="error-retry" id="error-retry" type="button">Reintentar</button>
+        </div>
+      </div>
+
+      <!-- RESULTS STATE -->
+      <div class="results-state hidden" id="results-state">
+
+        <!-- Ticker header -->
+        <div class="results-header">
+          <h1 class="results-ticker" id="results-ticker"></h1>
+          <div class="results-meta">
+            <span class="results-period" id="results-period"></span>
+            <span class="results-time" id="results-time"></span>
+          </div>
+        </div>
+
+        <!-- Metric Cards Grid -->
+        <div class="metrics-grid" id="metrics-grid"></div>
+
+        <!-- Warnings -->
+        <div class="warnings hidden" id="warnings">
+          <div class="warnings-inner" id="warnings-inner"></div>
+        </div>
+
+      </div>
+
+      <!-- METRICS PANEL -->
+      <div class="panel hidden" id="metrics-panel">
+
+        <div class="panel-header">
+          <h2 class="panel-title" id="metrics-panel-ticker"></h2>
+          <div class="panel-meta" id="metrics-panel-meta"></div>
+        </div>
+
+        <!-- Loading skeleton for metrics panel -->
+        <div class="panel-loading hidden" id="metrics-panel-loading">
+          <div class="chart-skeleton"></div>
+          <div class="chart-skeleton"></div>
+          <div class="chart-skeleton"></div>
+        </div>
+
+        <!-- Error within panel -->
+        <div class="panel-error hidden" id="metrics-panel-error">
+          <p class="panel-error-msg" id="metrics-panel-error-msg"></p>
+        </div>
+
+        <!-- Content -->
+        <div id="metrics-panel-content" class="hidden">
+
+          <!-- Returns & Volatility -->
+          <div class="chart-section">
+            <div class="chart-section-header">
+              <div>
+                <span class="chart-title">Volatilidad Rolling</span>
+                <span class="chart-subtitle">21 días · anualizada</span>
+              </div>
+              <div class="chart-stats" id="vol-stats"></div>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="chart-vol" aria-label="Gráfico de volatilidad rolling"></canvas>
+            </div>
+          </div>
+
+          <!-- Returns distribution row: stats table left + histogram right -->
+          <div class="metrics-two-col">
+
+            <div class="chart-section">
+              <div class="chart-section-header">
+                <div>
+                  <span class="chart-title">Returns</span>
+                  <span class="chart-subtitle">Log returns diarios</span>
+                </div>
+              </div>
+              <div class="returns-stats-grid" id="returns-stats-grid"></div>
+            </div>
+
+            <div class="chart-section">
+              <div class="chart-section-header">
+                <div>
+                  <span class="chart-title">Ratios de Riesgo</span>
+                  <span class="chart-subtitle">Sharpe · Sortino · Beta</span>
+                </div>
+              </div>
+              <div class="ratios-grid" id="ratios-grid"></div>
+            </div>
+
+          </div>
+
+          <!-- Precio (Line / Candlestick toggle) -->
+          <div class="chart-section">
+            <div class="chart-section-header">
+              <div>
+                <span class="chart-title">Precio</span>
+                <span class="chart-subtitle" id="price-chart-subtitle">Cierre ajustado</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:var(--s-3)">
+                <div class="chart-stats" id="price-stats"></div>
+                <div class="chart-toggle" id="price-chart-toggle">
+                  <button class="toggle-btn toggle-btn--active" data-mode="candle" title="Candlestick">
+                    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <line x1="5" y1="2" x2="5" y2="14"/><rect x="3" y="5" width="4" height="5" rx="0.5" fill="currentColor"/>
+                      <line x1="12" y1="2" x2="12" y2="14"/><rect x="10" y="4" width="4" height="6" rx="0.5"/>
+                    </svg>
+                  </button>
+                  <button class="toggle-btn" data-mode="line" title="Línea">
+                    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <polyline points="1,12 5,6 9,9 15,3"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="chart-wrap chart-wrap--tall">
+              <canvas id="chart-price" aria-label="Gráfico de precio"></canvas>
+            </div>
+            <p class="chart-zoom-hint">Scroll para zoom · Arrastra para pan · Doble click para resetear</p>
+          </div>
+
+          <!-- Bollinger Bands -->
+          <div class="chart-section">
+            <div class="chart-section-header">
+              <div>
+                <span class="chart-title">Bollinger Bands</span>
+                <span class="chart-subtitle">20 días · 2σ</span>
+              </div>
+              <div class="chart-stats" id="bb-stats"></div>
+            </div>
+            <div class="chart-wrap chart-wrap--tall">
+              <canvas id="chart-bb" aria-label="Gráfico de Bollinger Bands"></canvas>
+            </div>
+          </div>
+
+          <!-- Volumen -->
+          <div class="chart-section">
+            <div class="chart-section-header">
+              <div>
+                <span class="chart-title">Volumen de Transacciones</span>
+                <span class="chart-subtitle">Promedio móvil simple · SMA 20 días</span>
+              </div>
+              <div class="chart-stats" id="volume-stats"></div>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="chart-volume" aria-label="Gráfico de volumen"></canvas>
+            </div>
+            <p class="chart-annotation">
+              El promedio (SMA 20d) se calcula como la media aritmética del volumen
+              de las últimas 20 sesiones de trading. Picos de volumen respecto al
+              promedio suelen indicar interés institucional o eventos de mercado relevantes.
+            </p>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ── NEWS & IA PANEL ── -->
+      <div id="news-panel" class="panel hidden">
+        <div class="panel-header">
+          <h2 class="panel-title" id="news-panel-ticker"></h2>
+          <span class="panel-meta" id="news-panel-meta">Noticias & Análisis IA</span>
+        </div>
+
+        <!-- Headlines -->
+        <div class="news-headlines-section hidden" id="headlines-section">
+          <div class="headlines-header">
+            <span class="summary-tag">Headlines</span>
+          </div>
+          <ul class="headlines-list" id="headlines-list"></ul>
+        </div>
+
+        <!-- AI Summary -->
+        <div class="news-summary-section" id="news-summary-section">
+          <div class="summary-header">
+            <span class="summary-tag">Resumen IA</span>
+            <span class="summary-status" id="summary-status"></span>
+          </div>
+          <div class="summary-body" id="summary-body">
+            <div class="summary-loading">
+              <span class="spinner"></span>
+              <span>Generando resumen...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty state for news panel -->
+        <div id="news-panel-empty" class="hidden">
+          <p class="panel-error-msg" style="color: var(--on-surface-variant);">Ingresa un ticker y presiona Analizar para ver noticias y análisis IA.</p>
+        </div>
+      </div>
+
+      <!-- ── TECHNICALS PANEL ── -->
+      <div id="technicals-panel" class="panel hidden">
+        <div class="panel-header">
+          <h2 class="panel-title" id="tech-panel-ticker"></h2>
+          <span class="panel-meta" id="tech-panel-meta">Indicadores técnicos</span>
+        </div>
+
+        <!-- Loading -->
+        <div id="tech-panel-loading" class="panel-loading hidden">
+          <div class="chart-skeleton"></div>
+          <div class="chart-skeleton"></div>
+        </div>
+
+        <!-- Error -->
+        <div id="tech-panel-error" class="panel-error hidden">
+          <p class="panel-error-msg" id="tech-panel-error-msg"></p>
+        </div>
+
+        <!-- Content -->
+        <div id="tech-panel-content" class="hidden">
+
+          <!-- RSI -->
+          <div class="chart-section">
+            <div class="chart-section-header">
+              <div>
+                <span class="chart-title">RSI</span>
+                <span class="chart-subtitle">14 períodos · Wilder smoothing</span>
+              </div>
+              <div class="chart-stats" id="rsi-stats"></div>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="chart-rsi" aria-label="Gráfico RSI"></canvas>
+            </div>
+          </div>
+
+          <!-- MACD -->
+          <div class="chart-section">
+            <div class="chart-section-header">
+              <div>
+                <span class="chart-title">MACD</span>
+                <span class="chart-subtitle">12 / 26 / 9</span>
+              </div>
+              <div class="chart-stats" id="macd-stats"></div>
+            </div>
+            <div class="chart-wrap chart-wrap--tall">
+              <canvas id="chart-macd" aria-label="Gráfico MACD"></canvas>
+            </div>
+          </div>
+
+          <!-- Bollinger Bands (dedicated view) -->
+          <div class="chart-section">
+            <div class="chart-section-header">
+              <div>
+                <span class="chart-title">Bollinger Bands</span>
+                <span class="chart-subtitle">SMA 20 · ±2σ</span>
+              </div>
+              <div class="chart-stats" id="tech-bb-stats"></div>
+            </div>
+            <div class="chart-wrap chart-wrap--tall">
+              <canvas id="chart-tech-bb" aria-label="Gráfico Bollinger Bands técnico"></canvas>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ── METHODOLOGY PANEL ── -->
+      <div id="methodology-panel" class="panel hidden">
+        <div class="panel-header">
+          <h2 class="panel-title">Metodología</h2>
+          <span class="panel-meta">Parámetros predeterminados</span>
+        </div>
+
+        <div class="methodology-grid">
+
+          <article class="method-card">
+            <h3 class="method-name">Retornos</h3>
+            <dl class="method-params">
+              <div class="method-param"><dt>Método</dt><dd>Logarítmico (log returns)</dd></div>
+              <div class="method-param"><dt>Fórmula</dt><dd>r<sub>t</sub> = ln(P<sub>t</sub> / P<sub>t-1</sub>)</dd></div>
+            </dl>
+            <p class="method-note">Los retornos logarítmicos son aditivos en el tiempo y se aproximan a retornos simples para variaciones pequeñas. Preferidos en análisis cuantitativo por su simetría y propiedades estadísticas.</p>
+          </article>
+
+          <article class="method-card">
+            <h3 class="method-name">Volatilidad Realizada</h3>
+            <dl class="method-params">
+              <div class="method-param"><dt>Anualización</dt><dd>Sí (×√252)</dd></div>
+              <div class="method-param"><dt>Días de trading</dt><dd>252</dd></div>
+            </dl>
+            <p class="method-note">Desviación estándar de los retornos diarios, anualizada multiplicando por √252 (días hábiles por año). Mide la dispersión total del activo.</p>
+          </article>
+
+          <article class="method-card">
+            <h3 class="method-name">Rolling Volatility</h3>
+            <dl class="method-params">
+              <div class="method-param"><dt>Ventana</dt><dd>21 días</dd></div>
+              <div class="method-param"><dt>Anualización</dt><dd>Sí (×√252)</dd></div>
+              <div class="method-param"><dt>Días de trading</dt><dd>252</dd></div>
+            </dl>
+            <p class="method-note">Volatilidad móvil calculada sobre una ventana de 21 días (~1 mes de trading). Permite observar cómo evoluciona el riesgo a lo largo del tiempo.</p>
+          </article>
+
+          <article class="method-card">
+            <h3 class="method-name">Sharpe Ratio</h3>
+            <dl class="method-params">
+              <div class="method-param"><dt>Tasa libre de riesgo</dt><dd>0.0% anual</dd></div>
+              <div class="method-param"><dt>Días de trading</dt><dd>252</dd></div>
+              <div class="method-param"><dt>Fórmula</dt><dd>(R̄ − r<sub>f</sub>) / σ</dd></div>
+            </dl>
+            <p class="method-note">Retorno excedente por unidad de riesgo total. Un Sharpe > 1 se considera bueno, > 2 excelente. La tasa libre de riesgo se puede ajustar en parámetros.</p>
+          </article>
+
+          <article class="method-card">
+            <h3 class="method-name">Sortino Ratio</h3>
+            <dl class="method-params">
+              <div class="method-param"><dt>MAR (retorno mínimo aceptable)</dt><dd>0.0% anual</dd></div>
+              <div class="method-param"><dt>Días de trading</dt><dd>252</dd></div>
+              <div class="method-param"><dt>Fórmula</dt><dd>(R̄ − MAR) / σ<sub>down</sub></dd></div>
+            </dl>
+            <p class="method-note">Similar al Sharpe pero solo penaliza la volatilidad a la baja. Más relevante cuando la distribución de retornos es asimétrica (la mayoría de activos reales).</p>
+          </article>
+
+          <article class="method-card">
+            <h3 class="method-name">RSI (Relative Strength Index)</h3>
+            <dl class="method-params">
+              <div class="method-param"><dt>Ventana</dt><dd>14 períodos</dd></div>
+              <div class="method-param"><dt>Smoothing</dt><dd>Wilder (EMA recursiva)</dd></div>
+              <div class="method-param"><dt>Sobrecompra</dt><dd>> 70</dd></div>
+              <div class="method-param"><dt>Sobreventa</dt><dd>< 30</dd></div>
+            </dl>
+            <p class="method-note">Oscilador de momentum (0-100) que compara la magnitud de ganancias vs pérdidas recientes. Wilder smoothing usa factor 1/n en vez del 2/(n+1) estándar de EMA.</p>
+          </article>
+
+          <article class="method-card">
+            <h3 class="method-name">MACD</h3>
+            <dl class="method-params">
+              <div class="method-param"><dt>EMA rápida</dt><dd>12 períodos</dd></div>
+              <div class="method-param"><dt>EMA lenta</dt><dd>26 períodos</dd></div>
+              <div class="method-param"><dt>Línea signal</dt><dd>EMA 9 del MACD</dd></div>
+              <div class="method-param"><dt>Histograma</dt><dd>MACD − Signal</dd></div>
+            </dl>
+            <p class="method-note">Indicador de tendencia y momentum. Cruces del MACD sobre la signal sugieren cambios de tendencia. El histograma mide la aceleración del momentum.</p>
+          </article>
+
+          <article class="method-card">
+            <h3 class="method-name">Bollinger Bands</h3>
+            <dl class="method-params">
+              <div class="method-param"><dt>Ventana SMA</dt><dd>20 períodos</dd></div>
+              <div class="method-param"><dt>Desviaciones</dt><dd>±2σ</dd></div>
+              <div class="method-param"><dt>%B</dt><dd>(Precio − Inferior) / (Superior − Inferior)</dd></div>
+            </dl>
+            <p class="method-note">Banda superior e inferior a 2 desviaciones estándar de la SMA-20. ~95% de los precios caen dentro de las bandas en condiciones normales. %B mide la posición relativa del precio.</p>
+          </article>
+
+          <article class="method-card">
+            <h3 class="method-name">Beta</h3>
+            <dl class="method-params">
+              <div class="method-param"><dt>Benchmark</dt><dd>SPY (S&P 500 ETF)</dd></div>
+              <div class="method-param"><dt>Método</dt><dd>OLS (mínimos cuadrados)</dd></div>
+              <div class="method-param"><dt>Fórmula</dt><dd>β = Cov(r<sub>a</sub>, r<sub>m</sub>) / Var(r<sub>m</sub>)</dd></div>
+            </dl>
+            <p class="method-note">Sensibilidad del activo respecto al mercado. β=1 se mueve igual que el mercado, β>1 amplifica, β<1 amortigua. R² indica qué porcentaje de la variación se explica por el mercado.</p>
+          </article>
+
+          <article class="method-card">
+            <h3 class="method-name">Volumen</h3>
+            <dl class="method-params">
+              <div class="method-param"><dt>Promedio (SMA)</dt><dd>20 sesiones</dd></div>
+              <div class="method-param"><dt>Fuente</dt><dd>Yahoo Finance (volumen diario)</dd></div>
+            </dl>
+            <p class="method-note">El volumen diario de acciones transadas. La SMA-20 del volumen actúa como línea base: volúmenes significativamente por encima del promedio indican interés institucional, noticias, o eventos corporativos.</p>
+          </article>
+
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

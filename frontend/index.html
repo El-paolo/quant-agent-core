@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FINA — The Quantitative Editorial</title>
+  <meta name="description" content="Métricas cuantitativas, noticias con IA y análisis técnico en una sola API. La información que necesitas para tomar las mejores decisiones en segundos." />
+  <meta name="theme-color" content="#2b3437" />
+  <meta property="og:title" content="FINA — Quantitative Financial Analysis" />
+  <meta property="og:description" content="Métricas cuantitativas, noticias con IA y análisis técnico en una sola API." />
+  <meta property="og:type" content="website" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%232b3437'/><text x='4' y='23' font-family='system-ui' font-weight='900' font-size='18' fill='%23f8f9fa'>F</text></svg>" />
+
+  <!-- Inter — única tipografía del sistema -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="/static/css/main.css" />
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════════════
+       NAV — Glass rule: frosted pane over content
+  ══════════════════════════════════════════════ -->
+  <nav class="nav" id="nav">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo" aria-label="FINA">FINA</a>
+      <div class="nav-links">
+        <a href="#features" class="nav-link">Funciones</a>
+        <a href="#workflow" class="nav-link">Cómo funciona</a>
+        <a href="/docs" class="btn btn-ghost btn-sm">API docs →</a>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+
+    <!-- ══════════════════════════════════════════════
+         HERO — Asymmetric: text left, API mock right
+         Typography: display-lg for impact, left-aligned
+    ══════════════════════════════════════════════ -->
+    <section class="hero">
+      <div class="hero-inner">
+
+        <div class="hero-content animate-in" style="--delay: 0ms">
+          <div class="hero-label">Agente financiero todo en uno</div>
+          <h1 class="hero-title">
+            Decide más rápido.<br />Con mejor<br />información.
+          </h1>
+          <p class="hero-subtitle">
+            FINA es el agente que combina análisis cuantitativo,
+            noticias de último momento y un chat con IA — en una sola herramienta.
+            Mientras el mercado no espera, tú tampoco deberías.
+          </p>
+          <div class="hero-actions">
+            <a href="/app" class="btn btn-primary btn-lg">Comenzar ahora →</a>
+            <a href="#features" class="btn btn-ghost btn-lg">Ver funciones</a>
+          </div>
+          <div class="hero-meta">
+            <span class="hero-meta-item">
+              <span class="dot dot-green"></span>Datos en tiempo real
+            </span>
+            <span class="hero-meta-sep">·</span>
+            <span class="hero-meta-item">Modelos ajustables</span>
+            <span class="hero-meta-sep">·</span>
+            <span class="hero-meta-item">Chat integrado</span>
+          </div>
+        </div>
+
+        <!-- API Response Mock — surface-container-lowest card (Level 2) -->
+        <div class="hero-demo animate-in" style="--delay: 180ms">
+          <div class="api-card">
+            <div class="api-card-header">
+              <div class="api-card-dots" aria-hidden="true">
+                <span></span><span></span><span></span>
+              </div>
+              <span class="api-card-route">GET /agent/AAPL</span>
+              <span class="api-card-status">200 OK</span>
+            </div>
+            <div class="api-card-body">
+
+              <div class="api-row">
+                <span class="api-key">"ticker"</span>
+                <span class="api-val api-string">"AAPL"</span>
+              </div>
+
+              <div class="api-divider"></div>
+              <div class="api-section-label">// métricas cuantitativas</div>
+
+              <div class="api-row">
+                <span class="api-key">"retorno_1a"</span>
+                <span class="api-val api-positive">"+24.7%"</span>
+              </div>
+              <div class="api-row">
+                <span class="api-key">"volatilidad_30d"</span>
+                <span class="api-val api-number">"18.3%"</span>
+              </div>
+              <div class="api-row">
+                <span class="api-key">"sharpe"</span>
+                <span class="api-val api-number">1.82</span>
+              </div>
+              <div class="api-row">
+                <span class="api-key">"beta"</span>
+                <span class="api-val api-number">1.21</span>
+              </div>
+              <div class="api-row">
+                <span class="api-key">"max_drawdown"</span>
+                <span class="api-val api-negative">"-11.4%"</span>
+              </div>
+
+              <div class="api-divider"></div>
+              <div class="api-section-label">// análisis IA</div>
+
+              <div class="api-row api-row-block">
+                <span class="api-key">"summary"</span>
+                <span class="api-val api-text">"Apple registró ganancias récord en Q1 2026, impulsado por fuerte demanda de iPhone y expansión en servicios. El consenso es alcista..."</span>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════
+         TICKER TAPE — surface-container-low (Level 1)
+         Tonal shift. No border. No dividers between items.
+    ══════════════════════════════════════════════ -->
+    <div class="ticker-tape" aria-hidden="true">
+      <div class="ticker-track">
+        <div class="ticker-content">
+          <span class="tick"><span class="tick-sym">AAPL</span><span class="tick-price">189.45</span><span class="tick-chg up">▲ 1.23%</span></span>
+          <span class="tick-sep">·</span>
+          <span class="tick"><span class="tick-sym">MSFT</span><span class="tick-price">432.10</span><span class="tick-chg down">▼ 0.45%</span></span>
+          <span class="tick-sep">·</span>
+          <span class="tick"><span class="tick-sym">GOOGL</span><span class="tick-price">178.92</span><span class="tick-chg up">▲ 2.10%</span></span>
+          <span class="tick-sep">·</span>
+          <span class="tick"><span class="tick-sym">NVDA</span><span class="tick-price">892.40</span><span class="tick-chg up">▲ 3.21%</span></span>
+          <span class="tick-sep">·</span>
+          <span class="tick"><span class="tick-sym">TSLA</span><span class="tick-price">245.60</span><span class="tick-chg down">▼ 1.56%</span></span>
+          <span class="tick-sep">·</span>
+          <span class="tick"><span class="tick-sym">META</span><span class="tick-price">558.20</span><span class="tick-chg up">▲ 0.62%</span></span>
+          <span class="tick-sep">·</span>
+          <span class="tick"><span class="tick-sym">AMZN</span><span class="tick-price">205.30</span><span class="tick-chg up">▲ 0.87%</span></span>
+          <span class="tick-sep">·</span>
+          <span class="tick"><span class="tick-sym">JPM</span><span class="tick-price">224.85</span><span class="tick-chg down">▼ 0.33%</span></span>
+          <span class="tick-sep">·</span>
+          <span class="tick"><span class="tick-sym">GS</span><span class="tick-price">612.30</span><span class="tick-chg down">▼ 0.78%</span></span>
+          <span class="tick-sep">·</span>
+          <span class="tick"><span class="tick-sym">BRK.B</span><span class="tick-price">465.10</span><span class="tick-chg up">▲ 0.15%</span></span>
+          <span class="tick-sep">·</span>
+        </div>
+        <div class="ticker-content" aria-hidden="true">
+          <span class="tick"><span class="tick-sym">AAPL</span><span class="tick-price">189.45</span><span class="tick-chg up">▲ 1.23%</span></span>
+          <span class="tick-sep">·</span>
+          <span class="tick"><span class="tick-sym">MSFT</span><span class="tick-price">432.10</span><span class="tick-chg down">▼ 0.45%</span></span>
+          <span class="tick-sep">·</span>
+          <span class="tick"><span class="tick-sym">GOOGL</span><span class="tick-price">178.92</span><span class="tick-chg up">▲ 2.10%</span></span>
+          <span class="tick-sep">·</span>
+          <span class="tick"><span class="tick-sym">NVDA</span><span class="tick-price">892.40</span><span class="tick-chg up">▲ 3.21%</span></span>
+          <span class="tick-sep">·</span>
+          <span class="tick"><span class="tick-sym">TSLA</span><span class="tick-price">245.60</span><span class="tick-chg down">▼ 1.56%</span></span>
+          <span class="tick-sep">·</span>
+          <span class="tick"><span class="tick-sym">META</span><span class="tick-price">558.20</span><span class="tick-chg up">▲ 0.62%</span></span>
+          <span class="tick-sep">·</span>
+          <span class="tick"><span class="tick-sym">AMZN</span><span class="tick-price">205.30</span><span class="tick-chg up">▲ 0.87%</span></span>
+          <span class="tick-sep">·</span>
+          <span class="tick"><span class="tick-sym">JPM</span><span class="tick-price">224.85</span><span class="tick-chg down">▼ 0.33%</span></span>
+          <span class="tick-sep">·</span>
+          <span class="tick"><span class="tick-sym">GS</span><span class="tick-price">612.30</span><span class="tick-chg down">▼ 0.78%</span></span>
+          <span class="tick-sep">·</span>
+          <span class="tick"><span class="tick-sym">BRK.B</span><span class="tick-price">465.10</span><span class="tick-chg up">▲ 0.15%</span></span>
+          <span class="tick-sep">·</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════
+         FEATURES — Asymmetric: 1 large + 2 stacked
+         surface (base) → surface-container-lowest (cards)
+         Intentional asymmetry per DESIGN.md §6
+    ══════════════════════════════════════════════ -->
+    <section id="features" class="features">
+      <div class="section-inner">
+
+        <div class="section-header scroll-reveal">
+          <div class="section-tag">Funciones</div>
+          <h2 class="section-title">Un agente.<br />Todo lo que importa.</h2>
+        </div>
+
+        <div class="features-grid">
+
+          <!-- Large card: full height left -->
+          <div class="feature feature-large scroll-reveal">
+            <div>
+              <div class="feature-number">01</div>
+              <h3 class="feature-title">Métricas que dicen lo que los precios ocultan</h3>
+              <p class="feature-desc">
+                Sharpe, Sortino, beta, drawdown y correlaciones — calculados al instante
+                con parámetros ajustables a tu estrategia. No más hojas de cálculo.
+                No más modelos desactualizados. Solo la señal que necesitas para actuar.
+              </p>
+            </div>
+            <!-- Data card section — DESIGN.md Data Cards pattern -->
+            <div class="feature-metrics">
+              <div class="metric-row">
+                <span class="metric-label">Sharpe ratio</span>
+                <span class="metric-value metric-pos">1.82</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Sortino ratio</span>
+                <span class="metric-value metric-pos">2.41</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Volatilidad 30d</span>
+                <span class="metric-value">18.3%</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Retorno 1 año</span>
+                <span class="metric-value metric-pos">+24.7%</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Max Drawdown</span>
+                <span class="metric-value metric-neg">−11.4%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stacked right column -->
+          <div class="features-col-right">
+
+            <div class="feature scroll-reveal" style="--reveal-delay: 80ms">
+              <div class="feature-number">02</div>
+              <h3 class="feature-title">El mercado no te espera — tus noticias tampoco</h3>
+              <p class="feature-desc">
+                FINA filtra y resume las noticias relevantes para cada activo en tiempo real.
+                Sin suscripciones, sin ruido. Solo los eventos que mueven el precio —
+                explicados por IA antes de que el mercado los descuente.
+              </p>
+              <div class="feature-tag-row">
+                <span class="tag">Tiempo real</span>
+                <span class="tag">LLM local</span>
+                <span class="tag">Sin límites</span>
+              </div>
+            </div>
+
+            <div class="feature scroll-reveal" style="--reveal-delay: 160ms">
+              <div class="feature-number">03</div>
+              <h3 class="feature-title">Chat, API y visualizaciones — en un solo lugar</h3>
+              <p class="feature-desc">
+                Pregunta, compara y decide desde el chat integrado. O consume todo
+                desde la API y lleva FINA a tu propio dashboard. Un endpoint,
+                toda la inteligencia del agente.
+              </p>
+              <div class="feature-code">
+                <span class="code-method">GET</span>
+                <span class="code-path">/agent/<em>{ticker}</em></span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════
+         WORKFLOW — surface-container-low (Level 1)
+         Tonal section shift. No border between sections.
+         Step numbers use display-lg tonal color.
+    ══════════════════════════════════════════════ -->
+    <section id="workflow" class="workflow">
+      <div class="section-inner">
+
+        <div class="section-header section-header-center scroll-reveal">
+          <div class="section-tag">Cómo funciona</div>
+          <h2 class="section-title">De la pregunta<br />a la decisión en segundos.</h2>
+        </div>
+
+        <div class="steps">
+          <div class="step scroll-reveal" style="--reveal-delay: 0ms">
+            <div class="step-number">01</div>
+            <h3 class="step-title">Elige el activo</h3>
+            <p class="step-desc">
+              Ingresa cualquier ticker — AAPL, TSLA, MSFT.
+              FINA accede a datos de mercado actualizados al momento.
+            </p>
+          </div>
+
+          <div class="step-connector" aria-hidden="true"></div>
+
+          <div class="step scroll-reveal" style="--reveal-delay: 100ms">
+            <div class="step-number">02</div>
+            <h3 class="step-title">El agente trabaja</h3>
+            <p class="step-desc">
+              Métricas, noticias y sentimiento procesados en paralelo.
+              Modelos con parámetros ajustables según tu estrategia.
+            </p>
+          </div>
+
+          <div class="step-connector" aria-hidden="true"></div>
+
+          <div class="step scroll-reveal" style="--reveal-delay: 200ms">
+            <div class="step-number">03</div>
+            <h3 class="step-title">Tú decides</h3>
+            <p class="step-desc">
+              Visualizaciones claras, resumen en lenguaje natural y datos
+              estructurados listos para actuar — sin interpretación manual.
+            </p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════
+         CTA — on-surface background (dark inversion)
+         Left-aligned per DESIGN.md: "Don't center data"
+         Intentional asymmetry: headline massive left, CTA below
+    ══════════════════════════════════════════════ -->
+    <section class="cta scroll-reveal">
+      <div class="cta-inner">
+        <h2 class="cta-title">Los mejores traders no tienen más datos. Tienen mejores datos.</h2>
+        <p class="cta-subtitle">
+          Cada segundo sin información precisa es una decisión tomada a ciegas.
+          FINA te da la ventaja que el mercado no publicita.
+        </p>
+        <a href="/app" class="btn-cta">Empezar ahora — es gratis →</a>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ══════════════════════════════════════════════
+       FOOTER — surface-container-low
+       Left: logo + tagline  /  Right: links
+  ══════════════════════════════════════════════ -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-left">
+        <span class="footer-logo">FINA</span>
+        <span class="footer-tagline">Análisis financiero inteligente</span>
+      </div>
+      <div class="footer-right">
+        <a href="/docs"   class="footer-link">API docs</a>
+        <a href="/redoc"  class="footer-link">ReDoc</a>
+        <a href="/health" class="footer-link">Status</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/static/js/main.js"></script>
+</body>
+</html>
