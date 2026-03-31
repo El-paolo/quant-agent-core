@@ -97,6 +97,13 @@
           </svg>
           <span class="rail-label">Técnicos</span>
         </button>
+        <button class="rail-link" data-panel="models">
+          <svg class="rail-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M3 17V7l4-4 4 6 3-3 3 4v7"/>
+            <circle cx="7" cy="3" r="1.2"/>
+          </svg>
+          <span class="rail-label">Modelos</span>
+        </button>
         <button class="rail-link" data-panel="news">
           <svg class="rail-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
             <rect x="3" y="3" width="14" height="14" rx="2"/>
@@ -449,6 +456,141 @@
         </div>
       </div>
 
+      <!-- ── MODELS PANEL (GARCH + HMM) ── -->
+      <div id="models-panel" class="panel hidden">
+        <div class="panel-header">
+          <h2 class="panel-title" id="models-panel-ticker"></h2>
+          <span class="panel-meta" id="models-panel-meta">Modelos cuantitativos</span>
+        </div>
+
+        <!-- Loading -->
+        <div id="models-panel-loading" class="panel-loading hidden">
+          <div class="chart-skeleton"></div>
+          <div class="chart-skeleton"></div>
+        </div>
+
+        <!-- Error -->
+        <div id="models-panel-error" class="panel-error hidden">
+          <p class="panel-error-msg" id="models-panel-error-msg"></p>
+        </div>
+
+        <!-- Empty -->
+        <div id="models-panel-empty" class="hidden">
+          <p class="panel-error-msg" style="color: var(--on-surface-variant);">Ingresa un ticker y presiona Analizar para ver modelos GARCH y HMM.</p>
+        </div>
+
+        <!-- Content -->
+        <div id="models-panel-content" class="hidden">
+
+          <!-- HMM Current Regime Badge -->
+          <div class="models-regime-badge" id="models-regime-badge">
+            <div class="regime-badge-inner">
+              <span class="regime-dot" id="regime-dot"></span>
+              <div class="regime-info">
+                <span class="regime-label" id="regime-label"></span>
+                <span class="regime-detail" id="regime-detail"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- HMM Regime Timeline -->
+          <div class="chart-section">
+            <div class="chart-section-header">
+              <div>
+                <span class="chart-title">Regímenes de Mercado</span>
+                <span class="chart-subtitle">HMM Gaussiano · detección de estados latentes</span>
+              </div>
+              <div class="chart-stats" id="hmm-stats"></div>
+            </div>
+            <div class="chart-wrap" style="height:100px">
+              <canvas id="chart-hmm-regimes" aria-label="Línea temporal de regímenes HMM"></canvas>
+            </div>
+            <div class="hmm-legend" id="hmm-legend"></div>
+          </div>
+
+          <!-- HMM Gaussian Distributions -->
+          <div class="chart-section">
+            <div class="chart-section-header">
+              <div>
+                <span class="chart-title">Distribuciones Gaussianas</span>
+                <span class="chart-subtitle">PDF por régimen estimada por el HMM</span>
+              </div>
+            </div>
+            <div class="chart-wrap chart-wrap--tall">
+              <canvas id="chart-hmm-dist" aria-label="Distribuciones gaussianas por régimen"></canvas>
+            </div>
+          </div>
+
+          <!-- HMM State Parameters + Train/Test -->
+          <div class="models-two-col">
+            <div class="chart-section">
+              <div class="chart-section-header">
+                <div>
+                  <span class="chart-title">Parámetros de Estado</span>
+                  <span class="chart-subtitle">Media · volatilidad · probabilidad estacionaria</span>
+                </div>
+              </div>
+              <div class="models-state-params" id="models-state-params"></div>
+            </div>
+
+            <div class="chart-section">
+              <div class="chart-section-header">
+                <div>
+                  <span class="chart-title">Validación del Modelo</span>
+                  <span class="chart-subtitle">Train/Test split · log-likelihood por muestra</span>
+                </div>
+              </div>
+              <div class="models-validation" id="models-validation"></div>
+            </div>
+          </div>
+
+          <!-- GARCH Conditional Volatility -->
+          <div class="chart-section">
+            <div class="chart-section-header">
+              <div>
+                <span class="chart-title">Volatilidad Condicional GARCH(1,1)</span>
+                <span class="chart-subtitle">Estimación histórica del riesgo</span>
+              </div>
+              <div class="chart-stats" id="garch-vol-stats"></div>
+            </div>
+            <div class="chart-wrap chart-wrap--tall">
+              <canvas id="chart-garch-vol" aria-label="Gráfico de volatilidad condicional GARCH"></canvas>
+            </div>
+          </div>
+
+          <!-- GARCH Forecast Cone -->
+          <div class="chart-section">
+            <div class="chart-section-header">
+              <div>
+                <span class="chart-title">Pronóstico de Volatilidad</span>
+                <span class="chart-subtitle" id="garch-forecast-subtitle">GARCH(1,1) · 5 días · IC 95%</span>
+              </div>
+              <div class="chart-stats" id="garch-forecast-stats"></div>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="chart-garch-forecast" aria-label="Gráfico de pronóstico GARCH"></canvas>
+            </div>
+          </div>
+
+          <!-- GARCH Diagnostics -->
+          <div class="chart-section">
+            <div class="chart-section-header">
+              <div>
+                <span class="chart-title">Diagnóstico GARCH</span>
+                <span class="chart-subtitle">Parámetros del modelo estimado</span>
+              </div>
+            </div>
+            <div class="models-diagnostics" id="models-diagnostics"></div>
+          </div>
+
+          <!-- Warnings -->
+          <div class="models-warnings hidden" id="models-warnings">
+            <div class="models-warnings-inner" id="models-warnings-inner"></div>
+          </div>
+
+        </div>
+      </div>
+
       <!-- ── METHODOLOGY PANEL ── -->
       <div id="methodology-panel" class="panel hidden">
         <div class="panel-header">
@@ -555,6 +697,83 @@
               <div class="method-param"><dt>Fuente</dt><dd>Yahoo Finance (volumen diario)</dd></div>
             </dl>
             <p class="method-note">El volumen diario de acciones transadas. La SMA-20 del volumen actúa como línea base: volúmenes significativamente por encima del promedio indican interés institucional, noticias, o eventos corporativos.</p>
+          </article>
+
+        </div>
+
+        <!-- ── Modelos Cuantitativos ── -->
+        <div class="panel-header" style="margin-top:var(--s-6)">
+          <h2 class="panel-title">Modelos Cuantitativos</h2>
+          <span class="panel-meta">Supuestos, parámetros y limitaciones</span>
+        </div>
+
+        <div class="methodology-grid">
+
+          <article class="method-card method-card--wide">
+            <h3 class="method-name">GARCH(1,1)</h3>
+            <p class="method-subtitle">Generalized Autoregressive Conditional Heteroskedasticity</p>
+            <dl class="method-params">
+              <div class="method-param"><dt>Especificación</dt><dd>GARCH(1,1), media cero</dd></div>
+              <div class="method-param"><dt>Input</dt><dd>Log-returns diarios × 100</dd></div>
+              <div class="method-param"><dt>Horizonte default</dt><dd>5 días</dd></div>
+              <div class="method-param"><dt>IC default</dt><dd>95% (Normal)</dd></div>
+              <div class="method-param"><dt>Obs mínimas</dt><dd>50</dd></div>
+              <div class="method-param"><dt>Fórmula</dt><dd>σ²<sub>t</sub> = ω + α·ε²<sub>t-1</sub> + β·σ²<sub>t-1</sub></dd></div>
+            </dl>
+            <div class="method-assumptions">
+              <h4 class="method-assumptions-title">Supuestos</h4>
+              <ul class="method-assumptions-list">
+                <li><strong>Clustering de volatilidad:</strong> Períodos de alta volatilidad tienden a agruparse. GARCH captura este efecto a través de la persistencia (α+β).</li>
+                <li><strong>Estacionariedad:</strong> Requiere α+β < 1 para que la varianza incondicional exista. Si persistencia ≥ 1, el proceso es IGARCH (integrado) y la volatilidad no revierte a un nivel de largo plazo.</li>
+                <li><strong>Innovaciones normales:</strong> Los residuos estandarizados se asumen normales. En la práctica, los retornos financieros exhiben colas pesadas (leptocurtosis), por lo que los intervalos de confianza pueden subestimar el riesgo extremo.</li>
+                <li><strong>Simetría:</strong> GARCH(1,1) trata shocks positivos y negativos de igual magnitud como equivalentes. No captura el efecto leverage (la volatilidad tiende a aumentar más tras caídas que tras alzas).</li>
+                <li><strong>Media cero:</strong> Se asume retorno esperado cero para aislar la dinámica de volatilidad. Apropiado para horizontes cortos donde la media diaria es cercana a cero.</li>
+              </ul>
+            </div>
+            <div class="method-limitations">
+              <h4 class="method-assumptions-title">Limitaciones</h4>
+              <ul class="method-assumptions-list">
+                <li>El pronóstico converge rápidamente a la volatilidad de largo plazo — es más informativo para horizontes de 1-10 días.</li>
+                <li>No incorpora información exógena (noticias, eventos macro).</li>
+                <li>El escalado a porcentaje (×100) es una convención numérica de la librería <code>arch</code>; los resultados se convierten de vuelta a escala decimal.</li>
+                <li>Los intervalos de confianza usan una aproximación de ±20% de incertidumbre relativa, no una derivación analítica exacta.</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="method-card method-card--wide">
+            <h3 class="method-name">HMM Gaussiano</h3>
+            <p class="method-subtitle">Hidden Markov Model para detección de regímenes</p>
+            <dl class="method-params">
+              <div class="method-param"><dt>Tipo</dt><dd>Gaussiano (emisiones normales)</dd></div>
+              <div class="method-param"><dt>Estados</dt><dd>2 o 3 (default: 3)</dd></div>
+              <div class="method-param"><dt>Covarianza</dt><dd>Full</dd></div>
+              <div class="method-param"><dt>Estimación</dt><dd>EM (Baum-Welch), 200 iter</dd></div>
+              <div class="method-param"><dt>Train/Test</dt><dd>80/20 temporal (sin shuffle)</dd></div>
+              <div class="method-param"><dt>Obs mínimas</dt><dd>100</dd></div>
+              <div class="method-param"><dt>Decodificación</dt><dd>Viterbi (secuencia más probable)</dd></div>
+              <div class="method-param"><dt>Ordenamiento</dt><dd>Por varianza ascendente</dd></div>
+            </dl>
+            <div class="method-assumptions">
+              <h4 class="method-assumptions-title">Supuestos</h4>
+              <ul class="method-assumptions-list">
+                <li><strong>Regímenes latentes:</strong> El mercado opera en estados discretos no observables (ej: baja vol, moderada, crisis) que determinan la distribución de retornos en cada período.</li>
+                <li><strong>Propiedad de Markov:</strong> El estado futuro depende solo del estado actual, no del historial completo. Esto implica que la duración en un régimen sigue una distribución geométrica — el modelo no distingue si lleva 2 o 200 días en un régimen.</li>
+                <li><strong>Emisiones gaussianas:</strong> Dentro de cada estado, los retornos se distribuyen normalmente con media μ<sub>k</sub> y varianza σ²<sub>k</sub>. En la práctica, los retornos pueden exhibir asimetría y colas pesadas dentro de un mismo régimen.</li>
+                <li><strong>Número de estados fijo:</strong> El usuario debe elegir 2 o 3 estados a priori. El modelo no determina automáticamente cuántos regímenes existen — se puede comparar via AIC/BIC.</li>
+                <li><strong>Estacionariedad de la transición:</strong> La matriz de transición es constante en el tiempo. Asume que la probabilidad de cambiar de régimen no evoluciona (ej: no distingue entre ciclos económicos).</li>
+              </ul>
+            </div>
+            <div class="method-limitations">
+              <h4 class="method-assumptions-title">Limitaciones y validación</h4>
+              <ul class="method-assumptions-list">
+                <li><strong>Train/test split temporal:</strong> El modelo se entrena con el 80% inicial de los datos y se evalúa en el 20% restante. El log-likelihood por muestra (LL/n) en test debe ser comparable al de train; un delta negativo grande sugiere sobreajuste.</li>
+                <li><strong>No es predictivo:</strong> El HMM identifica regímenes retrospectivamente. El régimen "actual" se asigna con información completa (Viterbi sobre toda la serie), no en tiempo real.</li>
+                <li><strong>Sensibilidad a inicialización:</strong> EM puede converger a óptimos locales. Se usa <code>random_state=42</code> para reproducibilidad, pero distintos seeds pueden producir asignaciones de estado diferentes.</li>
+                <li><strong>Look-ahead en decodificación:</strong> La secuencia Viterbi usa toda la serie (incluyendo test) para decodificar. Esto es adecuado para análisis contextual pero no para simular decisiones en tiempo real.</li>
+                <li>Las distribuciones graficadas son las gaussianas del train set aplicadas a todo el rango de retornos observados.</li>
+              </ul>
+            </div>
           </article>
 
         </div>

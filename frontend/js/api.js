@@ -55,12 +55,15 @@
   function switchToPanel(panelName) {
     var prevPanel = state.activePanel;
 
-    /* Destroy charts when leaving metrics or technicals panels */
+    /* Destroy charts when leaving panels */
     if (prevPanel === "metrics" && panelName !== "metrics") {
       ["price", "vol", "bb", "volume"].forEach(F.destroyChart);
     }
     if (prevPanel === "technicals" && panelName !== "technicals") {
       ["rsi", "macd", "techBb"].forEach(F.destroyChart);
+    }
+    if (prevPanel === "models" && panelName !== "models") {
+      ["garchVol", "garchForecast", "hmmRegimes", "hmmDist"].forEach(F.destroyChart);
     }
 
     /* Hide all panels */
@@ -70,6 +73,7 @@
     hide($.resultsState);
     hide($.metricsPanel);
     hide($.techPanel);
+    hide($.modelsPanel);
     hide($.newsPanel);
     hide($.methodologyPanel);
 
@@ -124,6 +128,19 @@
         $.techPanelTicker.textContent = "";
         $.techPanelMeta.textContent = "Ingresa un ticker y presiona Analizar";
       }
+    } else if (panelName === "models") {
+      show($.modelsPanel);
+      if (state.analysisResult) {
+        F.loadModelsPanel();
+      } else {
+        hide($.modelsPanelLoading);
+        hide($.modelsPanelContent);
+        hide($.modelsPanelError);
+        hide($.modelsPanelEmpty);
+        $.modelsPanelTicker.textContent = "";
+        $.modelsPanelMeta.textContent = "Ingresa un ticker y presiona Analizar";
+        show($.modelsPanelEmpty);
+      }
     } else if (panelName === "methodology") {
       show($.methodologyPanel);
     }
@@ -148,9 +165,11 @@
     state.period  = $.period.value;
     state.metrics = readSelectedMetrics();
     state.errors  = [];
-    state.analysisResult    = null;
-    state.timeseriesResult  = null;
-    state.techSeriesResult  = null;
+    state.analysisResult        = null;
+    state.timeseriesResult      = null;
+    state.techSeriesResult      = null;
+    state.modelsResult          = null;
+    state.modelsTimeseriesResult = null;
     if (tickerChanged) state.agentResult = null;
     if (state.metrics.length === 0) state.metrics = F.ALL_METRICS.slice();
 
@@ -162,6 +181,7 @@
     hide($.resultsState);
     hide($.metricsPanel);
     hide($.techPanel);
+    hide($.modelsPanel);
     hide($.newsPanel);
     hide($.methodologyPanel);
     show($.loadingState);

@@ -1277,13 +1277,326 @@ legend { display: block; }
   border-top: 1px solid rgba(171, 179, 183, 0.15);
 }
 
+.method-card--wide {
+  grid-column: 1 / -1;
+}
+
+.method-subtitle {
+  font-size: var(--label-sm);
+  color: var(--on-surface-variant);
+  font-style: italic;
+  margin-bottom: var(--s-3);
+}
+
+.method-assumptions {
+  margin-top: var(--s-3);
+  padding-top: var(--s-3);
+  border-top: 1px solid rgba(171, 179, 183, 0.15);
+}
+
+.method-limitations {
+  margin-top: var(--s-3);
+  padding-top: var(--s-3);
+  border-top: 1px solid rgba(171, 179, 183, 0.15);
+}
+
+.method-assumptions-title {
+  font-size: var(--body-md);
+  font-weight: 600;
+  color: var(--on-surface);
+  margin-bottom: var(--s-2);
+}
+
+.method-assumptions-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.method-assumptions-list li {
+  font-size: var(--label-sm);
+  line-height: 1.55;
+  color: var(--on-surface-variant);
+  padding-left: var(--s-3);
+  position: relative;
+}
+
+.method-assumptions-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--on-surface-variant);
+  opacity: 0.5;
+}
+
+.method-assumptions-list li strong {
+  color: var(--on-surface);
+  font-weight: 600;
+}
+
+.method-assumptions-list li code {
+  font-size: 0.9em;
+  background: rgba(171, 179, 183, 0.1);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
 @media (max-width: 960px) {
   .methodology-grid {
     grid-template-columns: 1fr;
   }
+  .method-card--wide {
+    grid-column: 1;
+  }
 }
 
-/* --- 18. Reduced Motion --- */
+/* --- 18. Models Panel (GARCH + HMM) --- */
+
+.models-regime-badge {
+  margin-bottom: var(--s-4);
+}
+
+.regime-badge-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-4);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  border: 1px solid rgba(171, 179, 183, 0.15);
+}
+
+.regime-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.regime-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.regime-label {
+  font-size: var(--body-md);
+  font-weight: 600;
+  color: var(--on-surface);
+}
+
+.regime-detail {
+  font-size: var(--label-sm);
+  color: var(--on-surface-variant);
+}
+
+/* HMM legend */
+.hmm-legend {
+  display: flex;
+  gap: var(--s-4);
+  padding-top: var(--s-2);
+  justify-content: center;
+}
+
+.hmm-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  font-size: var(--label-sm);
+  color: var(--on-surface-variant);
+}
+
+.hmm-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* State params grid */
+.state-params-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--s-3);
+}
+
+.state-param-card {
+  background: var(--surface-2);
+  border-radius: var(--radius-lg);
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid rgba(171, 179, 183, 0.1);
+}
+
+.sp-header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+  padding-bottom: var(--s-2);
+  border-bottom: 1px solid rgba(171, 179, 183, 0.12);
+}
+
+.sp-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sp-name {
+  font-size: var(--body-md);
+  font-weight: 600;
+  color: var(--on-surface);
+}
+
+.sp-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.sp-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sp-label {
+  font-size: var(--label-sm);
+  color: var(--on-surface-variant);
+}
+
+.sp-value {
+  font-size: var(--body-md);
+  font-weight: 600;
+  color: var(--on-surface);
+  font-variant-numeric: tabular-nums;
+}
+
+/* GARCH diagnostics grid */
+.diag-section-title {
+  font-size: var(--body-md);
+  font-weight: 600;
+  color: var(--on-surface);
+  margin-top: var(--s-3);
+  margin-bottom: var(--s-2);
+  padding-bottom: var(--s-1);
+  border-bottom: 1px solid rgba(171, 179, 183, 0.2);
+}
+
+.diag-section-title:first-child {
+  margin-top: 0;
+}
+
+.diag-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0;
+}
+
+.diag-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid rgba(171, 179, 183, 0.1);
+}
+
+.diag-row:last-child {
+  border-bottom: none;
+}
+
+.diag-left {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.diag-label {
+  font-size: var(--body-md);
+  color: var(--on-surface);
+  font-weight: 500;
+}
+
+.diag-detail {
+  font-size: var(--label-sm);
+  color: var(--on-surface-variant);
+}
+
+.diag-value {
+  font-size: var(--body-md);
+  font-weight: 600;
+  color: var(--on-surface);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Models warnings (reuses pattern from overview) */
+.models-warnings {
+  margin-top: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  background: rgba(245, 158, 11, 0.08);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+/* Models two-column layout */
+.models-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-4);
+}
+
+@media (max-width: 768px) {
+  .models-two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Validation grid */
+.validation-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.val-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid rgba(171, 179, 183, 0.1);
+}
+
+.val-row:last-child {
+  border-bottom: none;
+}
+
+.val-label {
+  font-size: var(--body-md);
+  color: var(--on-surface-variant);
+}
+
+.val-value {
+  font-size: var(--body-md);
+  font-weight: 600;
+  color: var(--on-surface);
+  font-variant-numeric: tabular-nums;
+}
+
+.val-divider {
+  height: 1px;
+  background: rgba(171, 179, 183, 0.2);
+  margin: var(--s-1) 0;
+}
+
+/* --- 19. Reduced Motion --- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

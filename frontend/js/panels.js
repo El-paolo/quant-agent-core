@@ -324,11 +324,237 @@
     F.renderTechBollingerChart(series.bollinger || [], computed);
   }
 
+  /* ─── Models Panel ─── */
+  function loadModelsPanel() {
+    var data = state.analysisResult.data;
+    $.modelsPanelTicker.textContent = data.ticker;
+    $.modelsPanelMeta.textContent = data.period.toUpperCase() + " · GARCH + HMM";
+
+    /* Use cache if same ticker/period */
+    if (state.modelsResult &&
+        state.modelsResult.ticker === state.ticker &&
+        state.modelsResult.period === state.period) {
+      renderModelsPanel();
+      return;
+    }
+
+    hide($.modelsPanelContent);
+    hide($.modelsPanelError);
+    hide($.modelsPanelEmpty);
+    show($.modelsPanelLoading);
+
+    var body = JSON.stringify({ ticker: state.ticker, period: state.period });
+    var headers = { "Content-Type": "application/json" };
+
+    /* Fetch both scalar + timeseries in parallel */
+    var p1 = fetch("/models/", { method: "POST", headers: headers, body: body })
+      .then(function (r) {
+        if (!r.ok) return r.json().then(function (e) { throw new Error(e.detail || "Error " + r.status); });
+        return r.json();
+      });
+
+    var p2 = fetch("/models/timeseries/", { method: "POST", headers: headers, body: body })
+      .then(function (r) {
+        if (!r.ok) return r.json().then(function (e) { throw new Error(e.detail || "Error " + r.status); });
+        return r.json();
+      });
+
+    Promise.all([p1, p2])
+      .then(function (results) {
+        state.modelsResult = results[0];
+        state.modelsTimeseriesResult = results[1];
+        hide($.modelsPanelLoading);
+        renderModelsPanel();
+      })
+      .catch(function (err) {
+        hide($.modelsPanelLoading);
+        $.modelsPanelErrorMsg.textContent = "No se pudo cargar modelos: " + err.message;
+        show($.modelsPanelError);
+      });
+  }
+
+  function renderModelsPanel() {
+    var m = state.modelsResult;
+    var ts = state.modelsTimeseriesResult;
+    if (!m) return;
+
+    show($.modelsPanelContent);
+
+    /* ── HMM Current Regime Badge ── */
+    if (m.hmm && m.hmm.current_regime) {
+      var regime = m.hmm.current_regime;
+      var colors = F.REGIME_COLORS || {};
+      $.regimeDot.style.background = colors[regime.label] || "#586064";
+      $.regimeLabel.textContent = regime.label_es;
+      $.regimeDetail.textContent = regime.duration_days + " días · desde " + regime.since_date;
+      F.show($.regimeBadge);
+    } else {
+      F.hide($.regimeBadge);
+    }
+
+    /* ── HMM Regime Timeline ── */
+    F.renderHmmRegimesChart(ts ? ts.hmm_states : []);
+
+    /* ── HMM Distributions Chart ── */
+    F.renderHmmDistributionsChart(m.hmm ? m.hmm.distributions : null);
+
+    /* ── HMM State Parameters ── */
+    if (m.hmm && m.hmm.state_params) {
+      var paramsHtml = '<div class="state-params-grid">';
+      m.hmm.state_params.forEach(function (sp) {
+        var color = (F.REGIME_COLORS || {})[sp.label] || "#586064";
+        paramsHtml +=
+          '<div class="state-param-card">' +
+            '<div class="sp-header">' +
+              '<span class="sp-dot" style="background:' + color + '"></span>' +
+              '<span class="sp-name">' + escHtml(sp.label_es) + '</span>' +
+            '</div>' +
+            '<div class="sp-rows">' +
+              '<div class="sp-row"><span class="sp-label">Media diaria</span><span class="sp-value ' + sentiment(sp.mean_return) + '">' + fmtSign(sp.mean_return, 3) + '</span></div>' +
+              '<div class="sp-row"><span class="sp-label">Vol anualizada</span><span class="sp-value">' + fmtPct(sp.annualized_vol) + '</span></div>' +
+              '<div class="sp-row"><span class="sp-label">Prob estacionaria</span><span class="sp-value">' + fmtPct(sp.stationary_prob) + '</span></div>' +
+            '</div>' +
+          '</div>';
+      });
+      paramsHtml += '</div>';
+      $.modelsStateParams.innerHTML = paramsHtml;
+    } else {
+      $.modelsStateParams.innerHTML = '<p class="mc-detail">HMM no disponible</p>';
+    }
+
+    /* ── HMM Validation (train/test) ── */
+    if (m.hmm && m.hmm.split) {
+      var sp = m.hmm.split;
+      var trainScore = m.hmm.train_score;
+      var testScore = m.hmm.test_score;
+      var delta = testScore - trainScore;
+      var deltaCls = Math.abs(delta) < 0.5 ? "positive" : (delta < -1.0 ? "negative" : "");
+      var deltaLabel = Math.abs(delta) < 0.5 ? "Buen ajuste" : (delta < -1.0 ? "Posible sobreajuste" : "Aceptable");
+
+      $.modelsValidation.innerHTML =
+        '<div class="validation-grid">' +
+          '<div class="val-row">' +
+            '<div class="val-label">Split</div>' +
+            '<div class="val-value">' + Math.round(sp.train_ratio * 100) + '/' + Math.round((1 - sp.train_ratio) * 100) + '</div>' +
+          '</div>' +
+          '<div class="val-row">' +
+            '<div class="val-label">Train</div>' +
+            '<div class="val-value">' + sp.train_size + ' obs</div>' +
+          '</div>' +
+          '<div class="val-row">' +
+            '<div class="val-label">Test</div>' +
+            '<div class="val-value">' + sp.test_size + ' obs</div>' +
+          '</div>' +
+          '<div class="val-divider"></div>' +
+          '<div class="val-row">' +
+            '<div class="val-label">LL/n train</div>' +
+            '<div class="val-value">' + fmt(trainScore, 3) + '</div>' +
+          '</div>' +
+          '<div class="val-row">' +
+            '<div class="val-label">LL/n test</div>' +
+            '<div class="val-value">' + fmt(testScore, 3) + '</div>' +
+          '</div>' +
+          '<div class="val-row">' +
+            '<div class="val-label">Δ (test − train)</div>' +
+            '<div class="val-value ' + deltaCls + '">' + (delta >= 0 ? "+" : "") + fmt(delta, 3) + '</div>' +
+          '</div>' +
+          '<div class="val-row">' +
+            '<div class="val-label">Diagnóstico</div>' +
+            '<div class="val-value ' + deltaCls + '">' + escHtml(deltaLabel) + '</div>' +
+          '</div>' +
+          '<div class="val-divider"></div>' +
+          '<div class="val-row">' +
+            '<div class="val-label">AIC</div>' +
+            '<div class="val-value">' + fmt(m.hmm.aic, 1) + '</div>' +
+          '</div>' +
+          '<div class="val-row">' +
+            '<div class="val-label">BIC</div>' +
+            '<div class="val-value">' + fmt(m.hmm.bic, 1) + '</div>' +
+          '</div>' +
+        '</div>';
+    } else {
+      $.modelsValidation.innerHTML = '<p class="mc-detail">Validación no disponible</p>';
+    }
+
+    /* ── GARCH Conditional Volatility ── */
+    F.renderGarchVolChart(ts ? ts.garch_vol : []);
+
+    /* ── GARCH Forecast ── */
+    var forecast = m.garch ? m.garch.forecast : [];
+    var confidence = m.garch ? m.garch.confidence : 0.95;
+    F.renderGarchForecastChart(forecast, confidence);
+
+    /* ── GARCH Diagnostics + Validation ── */
+    if (m.garch && m.garch.diagnostics) {
+      var d = m.garch.diagnostics;
+      var ts_g = m.garch.test_score || {};
+      var sp_g = m.garch.split || {};
+      var persistCls = d.persistence > 0.99 ? "negative" : d.persistence > 0.95 ? "" : "positive";
+
+      /* Overfitting diagnostic: if MAE is much larger than realized vol, flag it */
+      var maeCls = "";
+      var maeDiag = "";
+      if (ts_g.mae !== null && ts_g.realized_vol !== null && ts_g.realized_vol > 0) {
+        var maeRatio = ts_g.mae / ts_g.realized_vol;
+        if (maeRatio < 0.5) { maeCls = "positive"; maeDiag = "Buen ajuste"; }
+        else if (maeRatio < 1.0) { maeCls = ""; maeDiag = "Aceptable"; }
+        else { maeCls = "negative"; maeDiag = "Posible sobreajuste"; }
+      }
+
+      var diagRows = [
+        { label: "α (alpha)", value: fmt(d.alpha, 4), detail: "Impacto de shocks recientes" },
+        { label: "β (beta)", value: fmt(d.beta, 4), detail: "Persistencia de la volatilidad" },
+        { label: "Persistencia (α+β)", value: fmt(d.persistence, 4), cls: persistCls, detail: d.persistence >= 1 ? "No estacionario" : "Estacionario" },
+        { label: "Vol largo plazo", value: d.long_run_vol !== null ? fmtPct(d.long_run_vol) : "N/A", detail: "Volatilidad incondicional" },
+      ];
+
+      var validRows = [
+        { label: "Split", value: Math.round((sp_g.train_ratio || 0.8) * 100) + "/" + Math.round((1 - (sp_g.train_ratio || 0.8)) * 100), detail: (sp_g.train_size || "?") + " train · " + (sp_g.test_size || "?") + " test" },
+        { label: "MAE out-of-sample", value: ts_g.mae !== null ? fmt(ts_g.mae * 100, 3) + "%" : "N/A", cls: maeCls, detail: maeDiag },
+        { label: "RMSE out-of-sample", value: ts_g.rmse !== null ? fmt(ts_g.rmse * 100, 3) + "%" : "N/A", detail: "" },
+        { label: "Vol realizada (test)", value: ts_g.realized_vol !== null ? fmt(ts_g.realized_vol * 100, 3) + "%" : "N/A", detail: "Media |r| en test set" },
+        { label: "AIC (full)", value: fmt(d.aic, 1), detail: "" },
+        { label: "BIC (full)", value: fmt(d.bic, 1), detail: "" },
+      ];
+
+      function renderDiagBlock(title, rows) {
+        return '<div class="diag-section-title">' + escHtml(title) + '</div>' +
+          '<div class="diag-grid">' + rows.map(function (row) {
+            return '<div class="diag-row">' +
+              '<div class="diag-left">' +
+                '<div class="diag-label">' + escHtml(row.label) + '</div>' +
+                (row.detail ? '<div class="diag-detail">' + escHtml(row.detail) + '</div>' : '') +
+              '</div>' +
+              '<div class="diag-value ' + (row.cls || '') + '">' + escHtml(row.value) + '</div>' +
+            '</div>';
+          }).join("") + '</div>';
+      }
+
+      $.modelsDiagnostics.innerHTML =
+        renderDiagBlock("Parámetros", diagRows) +
+        renderDiagBlock("Validación", validRows);
+    } else {
+      $.modelsDiagnostics.innerHTML = '<p class="mc-detail">GARCH no disponible</p>';
+    }
+
+    /* ── Warnings ── */
+    var allWarnings = (m.warnings || []).concat(ts ? (ts.warnings || []) : []);
+    if (allWarnings.length) {
+      $.modelsWarningsInner.innerHTML = allWarnings.map(function (w) {
+        return '<div class="warning-item"><span class="warning-icon">!</span><span>' + escHtml(w) + "</span></div>";
+      }).join("");
+      F.show($.modelsWarnings);
+    } else {
+      F.hide($.modelsWarnings);
+    }
+  }
+
   /* ─── Expose ─── */
   F.renderOverview = renderOverview;
   F.renderAgentResults = renderAgentResults;
   F.loadMetricsPanel = loadMetricsPanel;
   F.loadTechnicalsPanel = loadTechnicalsPanel;
+  F.loadModelsPanel = loadModelsPanel;
 
   /* ─── Event Handlers ─── */
   $.railLinks.forEach(function (link) {
