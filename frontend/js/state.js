@@ -70,12 +70,14 @@
     techSeriesResult: null,
     agentResult: null,
     agentTicker: null,
-    loading: { analysis: false, agent: false, timeseries: false },
+    modelsResult: null,
+    modelsTimeseriesResult: null,
+    loading: { analysis: false, agent: false, timeseries: false, models: false },
     errors: [],
   };
 
   /* Chart instances — destroyed before re-creating */
-  var charts = { vol: null, bb: null, volume: null, rsi: null, macd: null, techBb: null, price: null };
+  var charts = { vol: null, bb: null, volume: null, rsi: null, macd: null, techBb: null, price: null, garchVol: null, garchForecast: null, hmmRegimes: null, hmmDist: null };
   var priceChartMode = "candle";
 
   /* ─── DOM refs ─── */
@@ -136,6 +138,29 @@
     rsiStats:            document.getElementById("rsi-stats"),
     macdStats:           document.getElementById("macd-stats"),
     techBbStats:         document.getElementById("tech-bb-stats"),
+    /* Models panel */
+    modelsPanel:           document.getElementById("models-panel"),
+    modelsPanelTicker:     document.getElementById("models-panel-ticker"),
+    modelsPanelMeta:       document.getElementById("models-panel-meta"),
+    modelsPanelLoading:    document.getElementById("models-panel-loading"),
+    modelsPanelError:      document.getElementById("models-panel-error"),
+    modelsPanelErrorMsg:   document.getElementById("models-panel-error-msg"),
+    modelsPanelEmpty:      document.getElementById("models-panel-empty"),
+    modelsPanelContent:    document.getElementById("models-panel-content"),
+    regimeBadge:           document.getElementById("models-regime-badge"),
+    regimeDot:             document.getElementById("regime-dot"),
+    regimeLabel:           document.getElementById("regime-label"),
+    regimeDetail:          document.getElementById("regime-detail"),
+    hmmStats:              document.getElementById("hmm-stats"),
+    hmmLegend:             document.getElementById("hmm-legend"),
+    modelsStateParams:     document.getElementById("models-state-params"),
+    garchVolStats:         document.getElementById("garch-vol-stats"),
+    garchForecastSubtitle: document.getElementById("garch-forecast-subtitle"),
+    garchForecastStats:    document.getElementById("garch-forecast-stats"),
+    modelsDiagnostics:     document.getElementById("models-diagnostics"),
+    modelsValidation:      document.getElementById("models-validation"),
+    modelsWarnings:        document.getElementById("models-warnings"),
+    modelsWarningsInner:   document.getElementById("models-warnings-inner"),
     /* Methodology panel */
     methodologyPanel:    document.getElementById("methodology-panel"),
     /* Rail */

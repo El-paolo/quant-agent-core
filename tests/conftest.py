@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from fina.metrics.returns import simple_returns
+from fina.metrics.returns import simple_returns, log_returns
 from fina.data.fetcher import configure_price_cache
 from fina.agent.news import configure_news_cache
 
@@ -44,6 +44,12 @@ def sample_prices() -> pd.Series:
 def sample_returns(sample_prices: pd.Series) -> pd.Series:
     """Simple returns derived from the deterministic price fixture."""
     return simple_returns(sample_prices)
+
+
+@pytest.fixture
+def sample_log_returns(sample_prices: pd.Series) -> pd.Series:
+    """Log returns derived from the deterministic price fixture (251 obs)."""
+    return log_returns(sample_prices)
 
 
 @pytest.fixture

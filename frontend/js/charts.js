@@ -502,6 +502,267 @@
     });
   }
 
+  /* ─── GARCH Conditional Volatility ─── */
+  var REGIME_COLORS = {
+    low_vol:  "#006d4a",
+    mid_vol:  "#f59e0b",
+    high_vol: "#ba1b24",
+  };
+
+  function renderGarchVolChart(garchVol) {
+    destroyChart("garchVol");
+    if (!garchVol.length) {
+      showChartEmpty("chart-garch-vol", "Datos insuficientes para GARCH");
+      $.garchVolStats.innerHTML = "";
+      return;
+    }
+
+    var labels = garchVol.map(function (d) { return d.date; });
+    var values = garchVol.map(function (d) { return d.value !== null ? +(d.value * 100).toFixed(3) : null; });
+
+    var latest = values[values.length - 1];
+    $.garchVolStats.innerHTML =
+      '<div class="chart-stat">' +
+        '<span class="chart-stat-value">' + escHtml(latest !== null ? latest.toFixed(2) + "%" : "N/A") + '</span>' +
+        '<span class="chart-stat-label">Actual</span>' +
+      '</div>';
+
+    var opts = baseChartOptions(function (v) { return v.toFixed(1) + "%"; }, labels);
+    opts.scales.y.min = 0;
+    opts.plugins.tooltip.callbacks.label = function (ctx) {
+      return "Vol condicional: " + ctx.parsed.y.toFixed(3) + "%";
+    };
+
+    charts.garchVol = new Chart(document.getElementById("chart-garch-vol"), {
+      type: "line",
+      data: {
+        labels: sparseLabels(labels, 10),
+        datasets: [{
+          data: values,
+          borderColor: COLORS.line,
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.3,
+          fill: true,
+          backgroundColor: COLORS.fill,
+        }],
+      },
+      options: opts,
+    });
+  }
+
+  /* ─── GARCH Forecast Cone ─── */
+  function renderGarchForecastChart(forecast, confidence) {
+    destroyChart("garchForecast");
+    if (!forecast || !forecast.length) {
+      showChartEmpty("chart-garch-forecast", "Pronóstico no disponible");
+      $.garchForecastStats.innerHTML = "";
+      return;
+    }
+
+    var labels = forecast.map(function (d) { return "Día " + d.day; });
+    var point  = forecast.map(function (d) { return +(d.volatility * 100).toFixed(3); });
+    var upper  = forecast.map(function (d) { return +(d.upper * 100).toFixed(3); });
+    var lower  = forecast.map(function (d) { return +(d.lower * 100).toFixed(3); });
+
+    var confPct = confidence ? Math.round(confidence * 100) : 95;
+    $.garchForecastSubtitle.textContent = "GARCH(1,1) · " + forecast.length + " días · IC " + confPct + "%";
+
+    $.garchForecastStats.innerHTML =
+      '<div class="chart-stat">' +
+        '<span class="chart-stat-value">' + escHtml(point[0].toFixed(2) + "%") + '</span>' +
+        '<span class="chart-stat-label">Día 1</span>' +
+      '</div>' +
+      '<div class="chart-stat">' +
+        '<span class="chart-stat-value">' + escHtml(point[point.length - 1].toFixed(2) + "%") + '</span>' +
+        '<span class="chart-stat-label">Día ' + forecast.length + '</span>' +
+      '</div>';
+
+    var opts = baseChartOptions(function (v) { return v.toFixed(2) + "%"; });
+    opts.scales.y.min = 0;
+    opts.plugins.legend = {
+      display: true, position: "bottom",
+      labels: { color: "#586064", font: { family: "Inter", size: 11 }, boxWidth: 12, boxHeight: 2, padding: 16 },
+    };
+    opts.plugins.tooltip.callbacks.label = function (ctx) {
+      return ctx.dataset.label + ": " + ctx.parsed.y.toFixed(3) + "%";
+    };
+
+    charts.garchForecast = new Chart(document.getElementById("chart-garch-forecast"), {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: [
+          { label: "Superior", data: upper, borderColor: COLORS.negative, borderWidth: 1.2, borderDash: [5, 3], pointRadius: 2, fill: false },
+          { label: "Pronóstico", data: point, borderColor: COLORS.line, borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: COLORS.line, fill: false },
+          { label: "Inferior", data: lower, borderColor: COLORS.positive, borderWidth: 1.2, borderDash: [5, 3], pointRadius: 2, fill: "-2", backgroundColor: "rgba(26,86,219,0.08)" },
+        ],
+      },
+      options: opts,
+    });
+  }
+
+  /* ─── HMM Regime Timeline Bar ─── */
+  function renderHmmRegimesChart(hmmStates) {
+    destroyChart("hmmRegimes");
+    if (!hmmStates.length) {
+      showChartEmpty("chart-hmm-regimes", "Datos insuficientes para HMM");
+      $.hmmStats.innerHTML = "";
+      $.hmmLegend.innerHTML = "";
+      return;
+    }
+
+    var labels = hmmStates.map(function (d) { return d.date; });
+    var stateLabels = hmmStates.map(function (d) { return d.label; });
+    /* Each bar = 1 at fixed height, colored by regime */
+    var data = hmmStates.map(function () { return 1; });
+    var bgColors = hmmStates.map(function (d) {
+      return REGIME_COLORS[d.label] || COLORS.neutral;
+    });
+
+    /* Count regime days for stats */
+    var counts = {};
+    stateLabels.forEach(function (l) { counts[l] = (counts[l] || 0) + 1; });
+    var total = stateLabels.length;
+
+    var statHtml = "";
+    var legendLabels = { low_vol: "Baja vol", mid_vol: "Vol moderada", high_vol: "Alta vol" };
+    Object.keys(REGIME_COLORS).forEach(function (key) {
+      if (counts[key]) {
+        var pct = (counts[key] / total * 100).toFixed(0);
+        statHtml +=
+          '<div class="chart-stat">' +
+            '<span class="chart-stat-value" style="color:' + REGIME_COLORS[key] + '">' + pct + '%</span>' +
+            '<span class="chart-stat-label">' + escHtml(legendLabels[key] || key) + '</span>' +
+          '</div>';
+      }
+    });
+    $.hmmStats.innerHTML = statHtml;
+
+    /* Legend */
+    var legendHtml = "";
+    Object.keys(REGIME_COLORS).forEach(function (key) {
+      if (counts[key]) {
+        legendHtml +=
+          '<span class="hmm-legend-item">' +
+            '<span class="hmm-legend-dot" style="background:' + REGIME_COLORS[key] + '"></span>' +
+            escHtml(legendLabels[key] || key) +
+          '</span>';
+      }
+    });
+    $.hmmLegend.innerHTML = legendHtml;
+
+    var opts = {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 200 },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: "#2b3437",
+          titleColor: "#abb3b7",
+          bodyColor: "#f8f9fa",
+          borderColor: "rgba(171,179,183,0.2)",
+          borderWidth: 1,
+          padding: 10,
+          cornerRadius: 6,
+          callbacks: {
+            title: function (items) {
+              return items.length ? labels[items[0].dataIndex] : "";
+            },
+            label: function (ctx) {
+              var l = stateLabels[ctx.dataIndex];
+              var names = { low_vol: "Baja volatilidad", mid_vol: "Volatilidad moderada", high_vol: "Alta volatilidad" };
+              return names[l] || l;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: "#737c7f", font: { family: "Inter", size: 10 }, maxTicksLimit: 8, maxRotation: 0 },
+          grid: { display: false },
+        },
+        y: { display: false, min: 0, max: 1 },
+      },
+    };
+
+    charts.hmmRegimes = new Chart(document.getElementById("chart-hmm-regimes"), {
+      type: "bar",
+      data: {
+        labels: sparseLabels(labels, 12),
+        datasets: [{
+          data: data,
+          backgroundColor: bgColors,
+          borderWidth: 0,
+          barPercentage: 1.0,
+          categoryPercentage: 1.0,
+        }],
+      },
+      options: opts,
+    });
+  }
+
+  /* ─── HMM Gaussian Distributions ─── */
+  function renderHmmDistributionsChart(distributions) {
+    destroyChart("hmmDist");
+    if (!distributions || !distributions.length) {
+      showChartEmpty("chart-hmm-dist", "Distribuciones no disponibles");
+      return;
+    }
+
+    /* All distributions share the same x-axis */
+    var xVals = distributions[0].x;
+    var labels = xVals.map(function (v) { return (v * 100).toFixed(2); });
+
+    var datasets = distributions.map(function (d) {
+      var c = REGIME_COLORS[d.label] || COLORS.line;
+      var bg = c;
+      if (c.charAt(0) === "#") {
+        var r = parseInt(c.slice(1, 3), 16);
+        var g = parseInt(c.slice(3, 5), 16);
+        var b = parseInt(c.slice(5, 7), 16);
+        bg = "rgba(" + r + "," + g + "," + b + ",0.12)";
+      }
+      return {
+        label: d.label_es,
+        data: d.pdf,
+        borderColor: c,
+        backgroundColor: bg,
+        borderWidth: 2,
+        pointRadius: 0,
+        tension: 0.4,
+        fill: true,
+      };
+    });
+
+    var opts = baseChartOptions(null, labels);
+    opts.scales.x.title = { display: true, text: "Retorno diario (%)", color: "#737c7f", font: { family: "Inter", size: 11 } };
+    opts.scales.y.title = { display: true, text: "Densidad", color: "#737c7f", font: { family: "Inter", size: 11 } };
+    opts.scales.y.min = 0;
+    opts.scales.x.ticks.maxTicksLimit = 10;
+    opts.plugins.legend = {
+      display: true, position: "bottom",
+      labels: { color: "#586064", font: { family: "Inter", size: 11 }, boxWidth: 12, boxHeight: 2, padding: 16 },
+    };
+    opts.plugins.tooltip.callbacks.title = function (items) {
+      if (!items.length) return "";
+      return "Retorno: " + items[0].label + "%";
+    };
+    opts.plugins.tooltip.callbacks.label = function (ctx) {
+      return ctx.dataset.label + ": " + ctx.parsed.y.toFixed(2);
+    };
+
+    charts.hmmDist = new Chart(document.getElementById("chart-hmm-dist"), {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: datasets,
+      },
+      options: opts,
+    });
+  }
+
   /* ─── Expose ─── */
   F.destroyChart = destroyChart;
   F.destroyAllCharts = destroyAllCharts;
@@ -512,4 +773,9 @@
   F.renderRsiChart = renderRsiChart;
   F.renderMacdChart = renderMacdChart;
   F.renderVolumeChart = renderVolumeChart;
+  F.renderGarchVolChart = renderGarchVolChart;
+  F.renderGarchForecastChart = renderGarchForecastChart;
+  F.renderHmmRegimesChart = renderHmmRegimesChart;
+  F.renderHmmDistributionsChart = renderHmmDistributionsChart;
+  F.REGIME_COLORS = REGIME_COLORS;
 })();

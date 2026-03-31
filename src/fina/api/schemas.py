@@ -154,3 +154,56 @@ class AgentResponse(BaseModel):
     ticker: str
     summary: str
     headlines: list[str]
+
+
+# ---------------------------------------------------------------------------
+# Models (GARCH, HMM)
+# ---------------------------------------------------------------------------
+
+
+class ModelsRequest(BaseModel):
+    ticker: str
+    period: str = "1y"
+    garch_horizon: int = 5
+    hmm_states: int = 3
+
+    @field_validator("ticker")
+    @classmethod
+    def ticker_must_be_valid(cls, v: str) -> str:
+        normalized = v.strip().upper()
+        if not _TICKER_RE.match(normalized):
+            raise ValueError(f"Invalid ticker '{v}'.")
+        return normalized
+
+    @field_validator("period")
+    @classmethod
+    def period_must_be_valid(cls, v: str) -> str:
+        if v not in _VALID_PERIODS:
+            raise ValueError(
+                f"Invalid period '{v}'. Valid options: {sorted(_VALID_PERIODS)}."
+            )
+        return v
+
+    @field_validator("hmm_states")
+    @classmethod
+    def hmm_states_valid(cls, v: int) -> int:
+        if v not in (2, 3):
+            raise ValueError("hmm_states must be 2 or 3")
+        return v
+
+
+class ModelsResponse(BaseModel):
+    ticker: str
+    period: str
+    garch: dict[str, Any] | None = None
+    hmm: dict[str, Any] | None = None
+    warnings: list[str] = []
+
+
+class ModelsTimeseriesResponse(BaseModel):
+    ticker: str
+    period: str
+    garch_vol: list[dict[str, Any]] = []
+    garch_forecast: list[dict[str, Any]] = []
+    hmm_states: list[dict[str, Any]] = []
+    warnings: list[str] = []
