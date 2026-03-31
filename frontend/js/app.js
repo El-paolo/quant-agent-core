@@ -538,7 +538,7 @@
       body: JSON.stringify({
         ticker: state.ticker,
         period: state.period,
-        series: ["rolling_volatility", "bollinger", "volume", "ohlc"],
+        series: ["prices", "rolling_volatility", "bollinger", "volume", "ohlc"],
       }),
     })
       .then(function (r) {
@@ -563,7 +563,7 @@
 
     show($metricsPanelContent);
 
-    renderPriceChart(series.ohlc || [], series.bollinger || []);
+    renderPriceChart(series.ohlc || [], series.bollinger || [], series.prices || []);
     renderVolChart(series.rolling_volatility || [], computed);
     renderReturnsStats(computed);
     renderRatios(computed);
@@ -679,6 +679,19 @@
     };
   }
 
+  function showChartEmpty(canvasId, msg) {
+    var canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    var ctx = canvas.getContext("2d");
+    canvas.width = canvas.parentElement.clientWidth || 300;
+    canvas.height = 80;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#737c7f";
+    ctx.font = "13px Inter, system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(msg || "Datos insuficientes para este período", canvas.width / 2, 45);
+  }
+
   function sparseLabels(arr, max) {
     if (arr.length <= max) return arr;
     var step = Math.floor(arr.length / max);
@@ -686,17 +699,21 @@
   }
 
   /* ─── Price chart (Candlestick / Line toggle) ─── */
-  function renderPriceChart(ohlcSeries, bbSeries) {
+  function renderPriceChart(ohlcSeries, bbSeries, pricesSeries) {
     destroyChart("price");
-    if (!ohlcSeries.length && !bbSeries.length) return;
+    if (!ohlcSeries.length && !bbSeries.length && !(pricesSeries && pricesSeries.length)) {
+      showChartEmpty("chart-price", "Datos insuficientes para el gráfico de precios");
+      $priceStats.innerHTML = "";
+      return;
+    }
 
-    /* Extract close from ohlc or bollinger as fallback */
-    var source = ohlcSeries.length ? ohlcSeries : bbSeries;
+    /* Extract close from ohlc, bollinger, or raw prices as fallback */
+    var source = ohlcSeries.length ? ohlcSeries : (bbSeries.length ? bbSeries : pricesSeries);
     var labels = source.map(function (d) { return d.date; });
 
     /* Stats */
-    var latestClose = ohlcSeries.length ? ohlcSeries[ohlcSeries.length - 1].close : (bbSeries.length ? bbSeries[bbSeries.length - 1].price : null);
-    var firstClose  = ohlcSeries.length ? ohlcSeries[0].close : (bbSeries.length ? bbSeries[0].price : null);
+    var latestClose = ohlcSeries.length ? ohlcSeries[ohlcSeries.length - 1].close : (bbSeries.length ? bbSeries[bbSeries.length - 1].price : (pricesSeries && pricesSeries.length ? pricesSeries[pricesSeries.length - 1].value : null));
+    var firstClose  = ohlcSeries.length ? ohlcSeries[0].close : (bbSeries.length ? bbSeries[0].price : (pricesSeries && pricesSeries.length ? pricesSeries[0].value : null));
     var changePct = (latestClose && firstClose) ? ((latestClose - firstClose) / firstClose * 100) : null;
     var changeCls = changePct !== null ? (changePct >= 0 ? "positive" : "negative") : "";
 
@@ -713,7 +730,7 @@
     if (priceChartMode === "candle" && ohlcSeries.length) {
       renderCandlestick(ohlcSeries, labels);
     } else {
-      renderPriceLine(ohlcSeries.length ? ohlcSeries : bbSeries, labels);
+      renderPriceLine(ohlcSeries.length ? ohlcSeries : (bbSeries.length ? bbSeries : pricesSeries), labels);
     }
   }
 
@@ -768,7 +785,7 @@
 
   function renderPriceLine(series, labels) {
     var prices = series.map(function (d) {
-      return d.close !== undefined ? +d.close.toFixed(2) : (d.price !== undefined ? +d.price.toFixed(2) : null);
+      return d.close !== undefined ? +d.close.toFixed(2) : (d.price !== undefined ? +d.price.toFixed(2) : (d.value !== undefined && d.value !== null ? +d.value.toFixed(2) : null));
     });
 
     var opts = baseChartOptions(function (v) { return "$" + v; }, labels);
@@ -799,7 +816,11 @@
   /* Rolling Volatility chart */
   function renderVolChart(volSeries, computed) {
     destroyChart("vol");
-    if (!volSeries.length) return;
+    if (!volSeries.length) {
+      showChartEmpty("chart-vol", "Datos insuficientes para volatilidad rolling (mín. 22 obs)");
+      $volStats.innerHTML = "";
+      return;
+    }
 
     var labels = volSeries.map(function (d) { return d.date; });
     var values = volSeries.map(function (d) { return d.value !== null ? +(d.value * 100).toFixed(2) : null; });
@@ -908,7 +929,10 @@
   /* Bollinger Bands chart */
   function renderBollingerChart(bbSeries, computed) {
     destroyChart("bb");
-    if (!bbSeries.length) return;
+    if (!bbSeries.length) {
+      showChartEmpty("chart-bb", "Datos insuficientes para Bollinger Bands (mín. 20 obs)");
+      return;
+    }
 
     var labels = bbSeries.map(function (d) { return d.date; });
     var price  = bbSeries.map(function (d) { return d.price !== null ? +d.price.toFixed(2) : null; });
@@ -1043,7 +1067,11 @@
   /* RSI chart with overbought/oversold zones */
   function renderRsiChart(rsiSeries, computed) {
     destroyChart("rsi");
-    if (!rsiSeries.length) return;
+    if (!rsiSeries.length) {
+      showChartEmpty("chart-rsi", "Datos insuficientes para RSI (mín. 15 obs)");
+      $rsiStats.innerHTML = "";
+      return;
+    }
 
     var labels = rsiSeries.map(function (d) { return d.date; });
     var values = rsiSeries.map(function (d) { return d.value !== null ? +d.value.toFixed(1) : null; });
@@ -1110,7 +1138,10 @@
   /* MACD chart: MACD line, signal line, histogram bars */
   function renderMacdChart(macdSeries) {
     destroyChart("macd");
-    if (!macdSeries.length) return;
+    if (!macdSeries.length) {
+      showChartEmpty("chart-macd", "Datos insuficientes para MACD (mín. 35 obs)");
+      return;
+    }
 
     var labels    = macdSeries.map(function (d) { return d.date; });
     var macdLine  = macdSeries.map(function (d) { return d.macd !== null ? +d.macd.toFixed(3) : null; });
@@ -1181,7 +1212,10 @@
   /* Technicals Bollinger chart (same as metrics but separate canvas) */
   function renderTechBollingerChart(bbSeries, computed) {
     destroyChart("techBb");
-    if (!bbSeries.length) return;
+    if (!bbSeries.length) {
+      showChartEmpty("chart-tech-bb", "Datos insuficientes para Bollinger Bands (mín. 20 obs)");
+      return;
+    }
 
     var labels = bbSeries.map(function (d) { return d.date; });
     var price  = bbSeries.map(function (d) { return d.price !== null ? +d.price.toFixed(2) : null; });
@@ -1351,8 +1385,8 @@
       });
       /* Re-render if data available */
       var series = (state.timeseriesResult && state.timeseriesResult.series) || {};
-      if (series.ohlc || series.bollinger) {
-        renderPriceChart(series.ohlc || [], series.bollinger || []);
+      if (series.ohlc || series.bollinger || series.prices) {
+        renderPriceChart(series.ohlc || [], series.bollinger || [], series.prices || []);
       }
     });
   });

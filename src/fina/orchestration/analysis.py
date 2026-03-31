@@ -100,48 +100,78 @@ def run_analysis(
     # ------------------------------------------------------------------
     # 2. Compute returns once — reused by multiple metrics
     # ------------------------------------------------------------------
-    returns_result = compute_returns(prices, method="log")
-    returns_series = returns_result["returns"]
+    try:
+        returns_result = compute_returns(prices, method="log")
+        returns_series = returns_result["returns"]
+    except MetricsError as exc:
+        # Without returns, most metrics are impossible
+        returns_result = None
+        returns_series = None
+        warnings.append(f"Returns computation failed: {exc}")
 
     # ------------------------------------------------------------------
-    # 3. Compute requested metrics
+    # 3. Compute requested metrics (each wrapped individually so that
+    #    one failure does not prevent the rest from being computed)
     # ------------------------------------------------------------------
 
     if "returns" in requested:
-        result["returns"] = {
-            "method": returns_result["method"],
-            "observations": int(returns_result["observations"]),
-            "mean": _f(returns_series.mean()),
-            "std": _f(returns_series.std()),
-            "min": _f(returns_series.min()),
-            "max": _f(returns_series.max()),
-        }
+        if returns_result is not None:
+            result["returns"] = {
+                "method": returns_result["method"],
+                "observations": int(returns_result["observations"]),
+                "mean": _f(returns_series.mean()),
+                "std": _f(returns_series.std()),
+                "min": _f(returns_series.min()),
+                "max": _f(returns_series.max()),
+            }
+        else:
+            result["returns"] = None
 
     if "volatility" in requested:
-        vol = realized_volatility(returns_series)
-        result["volatility"] = {
-            k: (_f(v) if isinstance(v, (int, float)) else v)
-            for k, v in vol.items()
-        }
+        try:
+            if returns_series is None:
+                raise MetricsError("No returns available")
+            vol = realized_volatility(returns_series)
+            result["volatility"] = {
+                k: (_f(v) if isinstance(v, (int, float)) else v)
+                for k, v in vol.items()
+            }
+        except MetricsError as exc:
+            result["volatility"] = None
+            warnings.append(f"Volatility unavailable: {exc}")
 
     if "rolling_volatility" in requested:
-        roll_vol = rolling_volatility(returns_series, window=21)
-        latest = roll_vol.dropna().iloc[-1] if not roll_vol.dropna().empty else None
-        result["rolling_volatility"] = {
-            "latest_sd": _f(latest["volatility(s.d.)"]) if latest is not None else None,
-            "latest_variance": _f(latest["volatility(variance)"]) if latest is not None else None,
-            "window": int(roll_vol.attrs.get("window", 21)),
-        }
+        try:
+            if returns_series is None:
+                raise MetricsError("No returns available")
+            roll_vol = rolling_volatility(returns_series, window=21)
+            latest = roll_vol.dropna().iloc[-1] if not roll_vol.dropna().empty else None
+            result["rolling_volatility"] = {
+                "latest_sd": _f(latest["volatility(s.d.)"]) if latest is not None else None,
+                "latest_variance": _f(latest["volatility(variance)"]) if latest is not None else None,
+                "window": int(roll_vol.attrs.get("window", 21)),
+            }
+        except (MetricsError, IndexError) as exc:
+            result["rolling_volatility"] = None
+            warnings.append(f"Rolling volatility unavailable: {exc}")
 
     if "sharpe" in requested:
-        sr = sharpe_ratio(returns_series)
-        result["sharpe"] = {
-            k: (_f(v) if isinstance(v, (int, float)) else v)
-            for k, v in sr.items()
-        }
+        try:
+            if returns_series is None:
+                raise MetricsError("No returns available")
+            sr = sharpe_ratio(returns_series)
+            result["sharpe"] = {
+                k: (_f(v) if isinstance(v, (int, float)) else v)
+                for k, v in sr.items()
+            }
+        except MetricsError as exc:
+            result["sharpe"] = None
+            warnings.append(f"Sharpe ratio unavailable: {exc}")
 
     if "sortino" in requested:
         try:
+            if returns_series is None:
+                raise MetricsError("No returns available")
             so = sortino_ratio(returns_series)
             result["sortino"] = {
                 k: (_f(v) if isinstance(v, (int, float)) else v)
@@ -149,43 +179,61 @@ def run_analysis(
             }
         except MetricsError as exc:
             result["sortino"] = None
-            warnings.append(f"Sortino ratio undefined: {exc}")
+            warnings.append(f"Sortino ratio unavailable: {exc}")
 
     if "rsi" in requested:
-        rsi = compute_rsi(prices)
-        result["rsi"] = {
-            "latest": _f(rsi.iloc[-1]) if len(rsi) > 0 else None,
-            "observations": len(rsi),
-            "window": 14,
-        }
+        try:
+            rsi = compute_rsi(prices)
+            result["rsi"] = {
+                "latest": _f(rsi.iloc[-1]) if len(rsi) > 0 else None,
+                "observations": len(rsi),
+                "window": 14,
+            }
+        except (MetricsError, IndexError) as exc:
+            result["rsi"] = None
+            warnings.append(f"RSI unavailable: {exc}")
 
     if "macd" in requested:
-        macd_df = compute_macd(prices)
-        latest_macd = macd_df.iloc[-1]
-        result["macd"] = {
-            "macd": _f(latest_macd["macd"]),
-            "signal": _f(latest_macd["signal"]),
-            "histogram": _f(latest_macd["histogram"]),
-            "fast": 12,
-            "slow": 26,
-            "signal_period": 9,
-        }
+        try:
+            macd_df = compute_macd(prices)
+            if macd_df.empty:
+                raise MetricsError("Insufficient data for MACD (need 35+ observations)")
+            latest_macd = macd_df.iloc[-1]
+            result["macd"] = {
+                "macd": _f(latest_macd["macd"]),
+                "signal": _f(latest_macd["signal"]),
+                "histogram": _f(latest_macd["histogram"]),
+                "fast": 12,
+                "slow": 26,
+                "signal_period": 9,
+            }
+        except (MetricsError, IndexError) as exc:
+            result["macd"] = None
+            warnings.append(f"MACD unavailable: {exc}")
 
     if "bollinger" in requested:
-        bb = compute_bollinger_bands(prices)
-        latest_bb = bb.iloc[-1]
-        result["bollinger"] = {
-            "upper": _f(latest_bb["upper"]),
-            "middle": _f(latest_bb["middle"]),
-            "lower": _f(latest_bb["lower"]),
-            "bandwidth": _f(latest_bb["bandwidth"]),
-            "percent_b": _f(latest_bb["percent_b"]),
-            "window": 20,
-            "std_dev": 2.0,
-        }
+        try:
+            bb = compute_bollinger_bands(prices)
+            if bb.empty:
+                raise MetricsError("Insufficient data for Bollinger Bands (need 20+ observations)")
+            latest_bb = bb.iloc[-1]
+            result["bollinger"] = {
+                "upper": _f(latest_bb["upper"]),
+                "middle": _f(latest_bb["middle"]),
+                "lower": _f(latest_bb["lower"]),
+                "bandwidth": _f(latest_bb["bandwidth"]),
+                "percent_b": _f(latest_bb["percent_b"]),
+                "window": 20,
+                "std_dev": 2.0,
+            }
+        except (MetricsError, IndexError) as exc:
+            result["bollinger"] = None
+            warnings.append(f"Bollinger Bands unavailable: {exc}")
 
     if "beta" in requested:
         try:
+            if returns_series is None:
+                raise MetricsError("No returns available")
             market_prices = fetch_close_prices(_MARKET_BENCHMARK, period=period)
             market_prices = clean_prices(market_prices)
             market_returns = compute_returns(market_prices, method="log")["returns"]

@@ -45,59 +45,95 @@ async def analysis_timeseries(request: TimeseriesRequest) -> TimeseriesResponse:
     try:
         prices = fetch_close_prices(request.ticker, period=request.period)
         prices = clean_prices(prices)
+    except (FetcherError, ValidationError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal timeseries error")
 
-        warnings: list[str] = []
-        series: dict = {}
-        requested = set(request.series)
+    warnings: list[str] = []
+    series: dict = {}
+    requested = set(request.series)
 
+    # Returns are needed by rolling_volatility; compute once, gracefully
+    returns_series = None
+    try:
         returns_result = compute_returns(prices, method="log")
         returns_series = returns_result["returns"]
+    except (MetricsError, Exception) as exc:
+        warnings.append(f"Returns computation failed: {exc}")
 
-        if "prices" in requested:
-            series["prices"] = _series_to_list(prices)
+    if "prices" in requested:
+        series["prices"] = _series_to_list(prices)
 
-        if "returns" in requested:
+    if "returns" in requested:
+        if returns_series is not None:
             series["returns"] = _series_to_list(returns_series)
+        else:
+            series["returns"] = []
 
-        if "rolling_volatility" in requested:
+    if "rolling_volatility" in requested:
+        try:
+            if returns_series is None:
+                raise MetricsError("No returns available")
             rv = rolling_volatility(returns_series, window=21)
             series["rolling_volatility"] = _series_to_list(rv["volatility(s.d.)"])
+        except (MetricsError, IndexError, KeyError) as exc:
+            series["rolling_volatility"] = []
+            warnings.append(f"Rolling volatility unavailable: {exc}")
 
-        if "rsi" in requested:
+    if "rsi" in requested:
+        try:
             rsi = compute_rsi(prices, window=14)
             series["rsi"] = _series_to_list(rsi)
+        except (MetricsError, IndexError) as exc:
+            series["rsi"] = []
+            warnings.append(f"RSI unavailable: {exc}")
 
-        if "macd" in requested:
+    if "macd" in requested:
+        try:
             macd_df = compute_macd(prices)
+            if macd_df.empty:
+                raise MetricsError("Insufficient data for MACD")
             series["macd"] = _series_to_list(macd_df)
+        except (MetricsError, IndexError) as exc:
+            series["macd"] = []
+            warnings.append(f"MACD unavailable: {exc}")
 
-        if "bollinger" in requested:
+    if "bollinger" in requested:
+        try:
             bb_df = compute_bollinger_bands(prices)
-            # Include price for context in Bollinger chart
+            if bb_df.empty:
+                raise MetricsError("Insufficient data for Bollinger Bands")
             bb_with_price = bb_df.copy()
             bb_with_price["price"] = prices.reindex(bb_df.index)
             series["bollinger"] = _series_to_list(bb_with_price)
+        except (MetricsError, IndexError) as exc:
+            series["bollinger"] = []
+            warnings.append(f"Bollinger Bands unavailable: {exc}")
 
-        if "volume" in requested:
+    if "volume" in requested:
+        try:
             vol_series = fetch_volume(request.ticker, period=request.period)
             if not vol_series.empty:
                 series["volume"] = _series_to_list(vol_series)
             else:
                 series["volume"] = []
                 warnings.append("Volume data not available for this ticker.")
+        except Exception as exc:
+            series["volume"] = []
+            warnings.append(f"Volume unavailable: {exc}")
 
-        if "ohlc" in requested:
+    if "ohlc" in requested:
+        try:
             ohlc_df = fetch_ohlc(request.ticker, period=request.period)
             if not ohlc_df.empty:
                 series["ohlc"] = _series_to_list(ohlc_df)
             else:
                 series["ohlc"] = []
                 warnings.append("OHLC data not available for this ticker.")
-
-    except (FetcherError, MetricsError, ValidationError) as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
-    except Exception:
-        raise HTTPException(status_code=500, detail="Internal timeseries error")
+        except Exception as exc:
+            series["ohlc"] = []
+            warnings.append(f"OHLC unavailable: {exc}")
 
     return TimeseriesResponse(
         ticker=request.ticker,
