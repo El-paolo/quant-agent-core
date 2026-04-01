@@ -19,6 +19,7 @@ dependencies = [
     "hmmlearn>=0.3.0",
     "pmdarima>=2.0.0",
     "statsmodels>=0.14.0",
+    "litellm>=1.40.0",
 ]
 
 [dependency-groups]

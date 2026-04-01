@@ -841,9 +841,30 @@
     </main>
   </div>
 
+  <!-- ── Q&A Assistant Drawer ── -->
+  <button id="assistant-fab" class="assistant-fab" aria-label="Abrir asistente" title="Asistente FINA">?</button>
+
+  <div id="assistant-drawer" class="assistant-drawer hidden">
+    <div class="assistant-header">
+      <span class="assistant-title">Asistente FINA</span>
+      <button id="assistant-close" class="assistant-close" aria-label="Cerrar">&times;</button>
+    </div>
+    <div id="assistant-messages" class="assistant-messages">
+      <div class="assistant-msg assistant-msg--system">
+        Pregúntame sobre las métricas, modelos, o cómo interpretar tus resultados.
+      </div>
+    </div>
+    <form id="assistant-form" class="assistant-input-row">
+      <input id="assistant-input" type="text" class="assistant-input"
+             placeholder="Ej: ¿Qué significa un Sharpe de 0.5?" autocomplete="off" />
+      <button type="submit" id="assistant-send" class="assistant-send" aria-label="Enviar">&#x2192;</button>
+    </form>
+  </div>
+
   <script src="/static/js/state.js"></script>
   <script src="/static/js/charts.js"></script>
   <script src="/static/js/api.js"></script>
   <script src="/static/js/panels.js"></script>
+  <script src="/static/js/assistant.js"></script>
 </body>
 </html>

@@ -75,6 +75,9 @@
     comparisonResult: null,
     loading: { analysis: false, agent: false, timeseries: false, models: false },
     errors: [],
+    /* Assistant */
+    chatMessages: [],
+    chatOpen: false,
   };
 
   /* Chart instances — destroyed before re-creating */
@@ -168,6 +171,14 @@
     modelsWarningsInner:   document.getElementById("models-warnings-inner"),
     /* Methodology panel */
     methodologyPanel:    document.getElementById("methodology-panel"),
+    /* Assistant drawer */
+    assistantFab:      document.getElementById("assistant-fab"),
+    assistantDrawer:   document.getElementById("assistant-drawer"),
+    assistantClose:    document.getElementById("assistant-close"),
+    assistantMessages: document.getElementById("assistant-messages"),
+    assistantForm:     document.getElementById("assistant-form"),
+    assistantInput:    document.getElementById("assistant-input"),
+    assistantSend:     document.getElementById("assistant-send"),
     /* Rail */
     railLinks: document.querySelectorAll(".rail-link[data-panel]"),
   };
