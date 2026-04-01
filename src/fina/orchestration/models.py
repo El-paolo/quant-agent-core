@@ -9,6 +9,8 @@ from fina.core.exceptions import FetcherError, MetricsError
 from fina.data.cleaner import clean_prices
 from fina.data.fetcher import fetch_close_prices
 from fina.metrics.returns import compute_returns
+from fina.models.arima import fit_arima
+from fina.models.comparator import compare_models
 from fina.models.garch import fit_garch
 from fina.models.hmm import fit_hmm
 
@@ -78,8 +80,44 @@ def run_models(
         result["hmm"] = None
         warnings.append(f"HMM unavailable: {exc}")
 
+    # ARIMA
+    try:
+        arima_result = fit_arima(returns_series, horizon=garch_horizon)
+        result["arima"] = {
+            "forecast": arima_result["forecast"],
+            "diagnostics": arima_result["diagnostics"],
+            "split": arima_result["split"],
+            "train_score": arima_result["train_score"],
+            "test_score": arima_result["test_score"],
+            "horizon": arima_result["horizon"],
+            "observations": arima_result["observations"],
+            "confidence": arima_result["confidence"],
+        }
+    except MetricsError as exc:
+        result["arima"] = None
+        warnings.append(f"ARIMA unavailable: {exc}")
+
     result["warnings"] = warnings
     return result
+
+
+def run_comparison(
+    ticker: str,
+    period: str = "1y",
+    horizon: int = 5,
+) -> dict:
+    """
+    Fetch prices and run the model comparator (ARIMA vs GARCH).
+
+    Returns:
+        dict with keys: models, comparison, verdict, warnings
+    """
+    prices = fetch_close_prices(ticker, period=period)
+    prices = clean_prices(prices)
+    returns_result = compute_returns(prices, method="log")
+    returns_series = returns_result["returns"]
+
+    return compare_models(returns_series, horizon=horizon)
 
 
 def run_models_timeseries(
@@ -139,6 +177,26 @@ def run_models_timeseries(
     except MetricsError as exc:
         series["hmm_states"] = []
         warnings.append(f"HMM unavailable: {exc}")
+
+    # ARIMA fitted values
+    try:
+        arima_result = fit_arima(returns_series, horizon=garch_horizon)
+        fitted = arima_result["fitted_values"]
+        residuals = arima_result["residuals"]
+        series["arima_fitted"] = [
+            {
+                "date": str(idx.date() if hasattr(idx, "date") else idx),
+                "actual": float(returns_series.loc[idx]) if idx in returns_series.index else None,
+                "fitted": float(fitted.iloc[i]) if fitted.iloc[i] == fitted.iloc[i] else None,
+                "residual": float(residuals.iloc[i]) if residuals.iloc[i] == residuals.iloc[i] else None,
+            }
+            for i, idx in enumerate(fitted.index)
+        ]
+        series["arima_forecast"] = arima_result["forecast"]
+    except MetricsError as exc:
+        series["arima_fitted"] = []
+        series["arima_forecast"] = []
+        warnings.append(f"ARIMA unavailable: {exc}")
 
     series["warnings"] = warnings
     return series

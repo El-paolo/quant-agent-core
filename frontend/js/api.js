@@ -170,6 +170,7 @@
     state.techSeriesResult      = null;
     state.modelsResult          = null;
     state.modelsTimeseriesResult = null;
+    state.comparisonResult       = null;
     if (tickerChanged) state.agentResult = null;
     if (state.metrics.length === 0) state.metrics = F.ALL_METRICS.slice();
 

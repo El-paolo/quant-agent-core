@@ -1596,7 +1596,108 @@ legend { display: block; }
   margin: var(--s-1) 0;
 }
 
-/* --- 19. Reduced Motion --- */
+/* --- 19. Comparison Table & Verdict --- */
+.comparison-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--body-md);
+  font-variant-numeric: tabular-nums;
+}
+
+.comparison-tbl thead th {
+  text-align: left;
+  padding: var(--s-2) var(--s-3);
+  font-weight: 600;
+  color: var(--on-surface-variant);
+  border-bottom: 2px solid var(--outline-variant);
+  font-size: var(--label-md);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.comparison-tbl thead th:not(:first-child) {
+  text-align: right;
+}
+
+.comparison-tbl tbody tr {
+  border-bottom: 1px solid rgba(171, 179, 183, 0.12);
+}
+
+.comparison-tbl tbody tr:last-child {
+  border-bottom: none;
+}
+
+.cmp-label {
+  padding: var(--s-2) var(--s-3);
+  color: var(--on-surface);
+}
+
+.cmp-val {
+  padding: var(--s-2) var(--s-3);
+  text-align: right;
+  color: var(--on-surface-variant);
+  font-weight: 500;
+}
+
+.cmp-val.winner {
+  color: var(--secondary);
+  font-weight: 700;
+  position: relative;
+}
+
+.cmp-val.winner::before {
+  content: "✓ ";
+  font-size: var(--label-sm);
+}
+
+.comparison-verdict {
+  margin-top: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.verdict-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface-container-low);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(171, 179, 183, 0.12);
+}
+
+.verdict-icon {
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--on-surface-variant);
+  font-size: var(--body-md);
+}
+
+.verdict-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.verdict-title {
+  font-weight: 600;
+  font-size: var(--body-md);
+  color: var(--on-surface);
+  margin-bottom: var(--s-1);
+}
+
+.verdict-detail {
+  font-size: var(--label-md);
+  color: var(--on-surface-variant);
+  line-height: 1.5;
+}
+
+/* --- 20. Reduced Motion --- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
