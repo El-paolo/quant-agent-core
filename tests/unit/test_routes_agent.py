@@ -1,7 +1,7 @@
 """
-Unit tests for api/routes/agent.py — POST /agent/summarize/
+Unit tests for api/routes/agent.py — POST /agent/summarize/ and /agent/ask/
 
-fetch_news_headlines and summarize_news are always mocked.
+fetch_news_headlines, summarize_news, and answer_question are always mocked.
 Settings are injected via FastAPI dependency_overrides.
 """
 
@@ -215,6 +215,92 @@ class TestAgentRouteRegistration:
         paths = [r.path for r in app.routes]
         assert "/agent/summarize/" in paths
 
+    def test_ask_route_registered(self) -> None:
+        app = create_app()
+        paths = [r.path for r in app.routes]
+        assert "/agent/ask/" in paths
+
     def test_route_accepts_post_only(self, client: TestClient) -> None:
         r = client.get("/agent/summarize/")
         assert r.status_code == 405  # Method Not Allowed
+
+
+# ---------------------------------------------------------------------------
+# /agent/ask/ — Q&A assistant
+# ---------------------------------------------------------------------------
+
+_ANSWER = "El Sharpe ratio de 0.5 está por debajo del umbral de 1."
+
+
+class TestAgentAskHappyPath:
+    @patch("fina.api.routes.agent.answer_question", return_value=_ANSWER)
+    def test_returns_200(self, mock_aq, client: TestClient) -> None:
+        r = client.post("/agent/ask/", json={"question": "¿Es bueno?"})
+        assert r.status_code == 200
+
+    @patch("fina.api.routes.agent.answer_question", return_value=_ANSWER)
+    def test_response_has_required_keys(self, mock_aq, client: TestClient) -> None:
+        r = client.post("/agent/ask/", json={"question": "test"})
+        body = r.json()
+        assert "question" in body
+        assert "answer" in body
+        assert body["answer"] == _ANSWER
+
+    @patch("fina.api.routes.agent.answer_question", return_value=_ANSWER)
+    def test_ticker_passed_through(self, mock_aq, client: TestClient) -> None:
+        r = client.post("/agent/ask/", json={"question": "test", "ticker": "AAPL"})
+        assert r.json()["ticker"] == "AAPL"
+
+    @patch("fina.api.routes.agent.answer_question", return_value=_ANSWER)
+    def test_ticker_optional(self, mock_aq, client: TestClient) -> None:
+        r = client.post("/agent/ask/", json={"question": "¿Qué es FINA?"})
+        assert r.status_code == 200
+        assert r.json()["ticker"] is None
+
+    @patch("fina.api.routes.agent.answer_question", return_value=_ANSWER)
+    def test_context_forwarded(self, mock_aq, client: TestClient) -> None:
+        ctx = {"ticker": "AAPL", "sharpe": "1.5"}
+        r = client.post("/agent/ask/", json={"question": "test", "context": ctx})
+        assert r.status_code == 200
+        call_args = mock_aq.call_args.args
+        assert call_args[1] == ctx
+
+
+class TestAgentAskValidation:
+    def test_empty_question_returns_422(self, client: TestClient) -> None:
+        r = client.post("/agent/ask/", json={"question": ""})
+        assert r.status_code == 422
+
+    def test_missing_question_returns_422(self, client: TestClient) -> None:
+        r = client.post("/agent/ask/", json={})
+        assert r.status_code == 422
+
+    def test_invalid_ticker_returns_422(self, client: TestClient) -> None:
+        r = client.post("/agent/ask/", json={"question": "test", "ticker": "!!!"})
+        assert r.status_code == 422
+
+
+class TestAgentAskErrorMapping:
+    @patch(
+        "fina.api.routes.agent.answer_question",
+        side_effect=FetcherError("Ollama not running"),
+    )
+    def test_fetcher_error_returns_502(self, mock_aq, client: TestClient) -> None:
+        r = client.post("/agent/ask/", json={"question": "test"})
+        assert r.status_code == 502
+
+    @patch(
+        "fina.api.routes.agent.answer_question",
+        side_effect=ConfigError("LLM not configured"),
+    )
+    def test_config_error_returns_503(self, mock_aq, client: TestClient) -> None:
+        r = client.post("/agent/ask/", json={"question": "test"})
+        assert r.status_code == 503
+
+    @patch(
+        "fina.api.routes.agent.answer_question",
+        side_effect=RuntimeError("unexpected"),
+    )
+    def test_unexpected_error_returns_500(self, mock_aq, client: TestClient) -> None:
+        r = client.post("/agent/ask/", json={"question": "test"})
+        assert r.status_code == 500

@@ -156,6 +156,36 @@ class AgentResponse(BaseModel):
     headlines: list[str]
 
 
+class AskRequest(BaseModel):
+    question: str
+    ticker: str | None = None
+    context: dict[str, Any] | None = None
+
+    @field_validator("question")
+    @classmethod
+    def question_not_empty(cls, v: str) -> str:
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("Question must not be empty.")
+        return stripped
+
+    @field_validator("ticker")
+    @classmethod
+    def ticker_must_be_valid(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        normalized = v.strip().upper()
+        if not _TICKER_RE.match(normalized):
+            raise ValueError(f"Invalid ticker '{v}'.")
+        return normalized
+
+
+class AskResponse(BaseModel):
+    question: str
+    answer: str
+    ticker: str | None = None
+
+
 # ---------------------------------------------------------------------------
 # Models (GARCH, HMM)
 # ---------------------------------------------------------------------------

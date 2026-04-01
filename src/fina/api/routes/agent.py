@@ -1,4 +1,4 @@
-"""POST /agent/summarize/ — fetch news and summarize with the configured LLM."""
+"""Agent routes — news summarization and contextual Q&A assistant."""
 
 import asyncio
 
@@ -6,8 +6,9 @@ from fastapi import APIRouter, HTTPException
 
 from fina.agent.news import fetch_news_headlines
 from fina.agent.summarizer import summarize_news
+from fina.agent.assistant import answer_question
 from fina.api.dependencies import AgentSettingsDep
-from fina.api.schemas import AgentRequest, AgentResponse
+from fina.api.schemas import AgentRequest, AgentResponse, AskRequest, AskResponse
 from fina.core.exceptions import ConfigError, FetcherError
 
 router = APIRouter(tags=["agent"])
@@ -51,4 +52,38 @@ async def agent_summarize(
         ticker=request.ticker,
         summary=summary,
         headlines=[h["title"] for h in headlines],
+    )
+
+
+@router.post("/ask/", response_model=AskResponse)
+async def agent_ask(
+    request: AskRequest,
+    settings: AgentSettingsDep,
+) -> AskResponse:
+    """
+    Answer a question about FINA's metrics, models, or analysis results.
+
+    The optional context dict lets the frontend inject current analysis
+    state (ticker, metrics, model results) so answers are specific.
+
+    HTTP status codes:
+      503 — agent configuration missing
+      502 — LLM provider failed
+      500 — unexpected internal error
+    """
+    try:
+        answer = await asyncio.to_thread(
+            answer_question, request.question, request.context, settings,
+        )
+    except ConfigError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except FetcherError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Assistant failed")
+
+    return AskResponse(
+        question=request.question,
+        answer=answer,
+        ticker=request.ticker,
     )
