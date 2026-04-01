@@ -197,6 +197,7 @@ class ModelsResponse(BaseModel):
     period: str
     garch: dict[str, Any] | None = None
     hmm: dict[str, Any] | None = None
+    arima: dict[str, Any] | None = None
     warnings: list[str] = []
 
 
@@ -206,4 +207,15 @@ class ModelsTimeseriesResponse(BaseModel):
     garch_vol: list[dict[str, Any]] = []
     garch_forecast: list[dict[str, Any]] = []
     hmm_states: list[dict[str, Any]] = []
+    arima_fitted: list[dict[str, Any]] = []
+    arima_forecast: list[dict[str, Any]] = []
+    warnings: list[str] = []
+
+
+class ComparisonResponse(BaseModel):
+    ticker: str
+    period: str
+    models: dict[str, Any] = {}
+    comparison: list[dict[str, Any]] = []
+    verdict: dict[str, Any] = {}
     warnings: list[str] = []

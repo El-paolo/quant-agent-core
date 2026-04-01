@@ -328,7 +328,7 @@
   function loadModelsPanel() {
     var data = state.analysisResult.data;
     $.modelsPanelTicker.textContent = data.ticker;
-    $.modelsPanelMeta.textContent = data.period.toUpperCase() + " · GARCH + HMM";
+    $.modelsPanelMeta.textContent = data.period.toUpperCase() + " · GARCH + HMM + ARIMA";
 
     /* Use cache if same ticker/period */
     if (state.modelsResult &&
@@ -346,7 +346,7 @@
     var body = JSON.stringify({ ticker: state.ticker, period: state.period });
     var headers = { "Content-Type": "application/json" };
 
-    /* Fetch both scalar + timeseries in parallel */
+    /* Fetch scalar + timeseries + comparison in parallel */
     var p1 = fetch("/models/", { method: "POST", headers: headers, body: body })
       .then(function (r) {
         if (!r.ok) return r.json().then(function (e) { throw new Error(e.detail || "Error " + r.status); });
@@ -359,10 +359,17 @@
         return r.json();
       });
 
-    Promise.all([p1, p2])
+    var p3 = fetch("/models/compare/", { method: "POST", headers: headers, body: body })
+      .then(function (r) {
+        if (!r.ok) return r.json().then(function (e) { throw new Error(e.detail || "Error " + r.status); });
+        return r.json();
+      });
+
+    Promise.all([p1, p2, p3])
       .then(function (results) {
         state.modelsResult = results[0];
         state.modelsTimeseriesResult = results[1];
+        state.comparisonResult = results[2];
         hide($.modelsPanelLoading);
         renderModelsPanel();
       })
@@ -484,6 +491,20 @@
     var confidence = m.garch ? m.garch.confidence : 0.95;
     F.renderGarchForecastChart(forecast, confidence);
 
+    /* ── Shared diagnostics renderer ── */
+    function renderDiagBlock(title, rows) {
+      return '<div class="diag-section-title">' + escHtml(title) + '</div>' +
+        '<div class="diag-grid">' + rows.map(function (row) {
+          return '<div class="diag-row">' +
+            '<div class="diag-left">' +
+              '<div class="diag-label">' + escHtml(row.label) + '</div>' +
+              (row.detail ? '<div class="diag-detail">' + escHtml(row.detail) + '</div>' : '') +
+            '</div>' +
+            '<div class="diag-value ' + (row.cls || '') + '">' + escHtml(row.value) + '</div>' +
+          '</div>';
+        }).join("") + '</div>';
+    }
+
     /* ── GARCH Diagnostics + Validation ── */
     if (m.garch && m.garch.diagnostics) {
       var d = m.garch.diagnostics;
@@ -517,24 +538,113 @@
         { label: "BIC (full)", value: fmt(d.bic, 1), detail: "" },
       ];
 
-      function renderDiagBlock(title, rows) {
-        return '<div class="diag-section-title">' + escHtml(title) + '</div>' +
-          '<div class="diag-grid">' + rows.map(function (row) {
-            return '<div class="diag-row">' +
-              '<div class="diag-left">' +
-                '<div class="diag-label">' + escHtml(row.label) + '</div>' +
-                (row.detail ? '<div class="diag-detail">' + escHtml(row.detail) + '</div>' : '') +
-              '</div>' +
-              '<div class="diag-value ' + (row.cls || '') + '">' + escHtml(row.value) + '</div>' +
-            '</div>';
-          }).join("") + '</div>';
-      }
-
       $.modelsDiagnostics.innerHTML =
         renderDiagBlock("Parámetros", diagRows) +
         renderDiagBlock("Validación", validRows);
     } else {
       $.modelsDiagnostics.innerHTML = '<p class="mc-detail">GARCH no disponible</p>';
+    }
+
+    /* ── ARIMA Diagnostics ── */
+    if (m.arima && m.arima.diagnostics) {
+      var ad = m.arima.diagnostics;
+      var at = m.arima.test_score || {};
+      var as = m.arima.split || {};
+      var orderStr = "(" + (ad.order || [0,0,0]).join(",") + ")";
+      $.arimaDiagSubtitle.textContent = "ARIMA" + orderStr + " · selección por AIC";
+
+      var lbCls = "";
+      var lbDiag = "";
+      if (ad.ljung_box_pvalue !== null && ad.ljung_box_pvalue !== undefined) {
+        if (ad.ljung_box_pvalue > 0.05) { lbCls = "positive"; lbDiag = "Sin autocorrelación"; }
+        else { lbCls = "negative"; lbDiag = "Autocorrelación residual"; }
+      }
+
+      var dirAccStr = "N/A";
+      var dirAccCls = "";
+      var dirAccDiag = "";
+      if (at.directional_accuracy !== null && at.directional_accuracy !== undefined) {
+        dirAccStr = fmtPct(at.directional_accuracy);
+        if (at.directional_accuracy > 0.55) { dirAccCls = "positive"; dirAccDiag = "Superior al azar"; }
+        else if (at.directional_accuracy > 0.45) { dirAccCls = ""; dirAccDiag = "Cercano al azar"; }
+        else { dirAccCls = "negative"; dirAccDiag = "Inferior al azar"; }
+      } else {
+        dirAccDiag = "Sin opinión direccional";
+      }
+
+      var arimaParamRows = [
+        { label: "Orden (p,d,q)", value: orderStr, detail: "Selección automática por AIC" },
+        { label: "AIC", value: fmt(ad.aic, 1), detail: "" },
+        { label: "BIC", value: fmt(ad.bic, 1), detail: "" },
+        { label: "Ljung-Box p-value", value: ad.ljung_box_pvalue !== null ? fmt(ad.ljung_box_pvalue, 4) : "N/A", cls: lbCls, detail: lbDiag },
+      ];
+
+      var arimaValidRows = [
+        { label: "Split", value: Math.round((as.train_ratio || 0.8) * 100) + "/" + Math.round((1 - (as.train_ratio || 0.8)) * 100), detail: (as.train_size || "?") + " train · " + (as.test_size || "?") + " test" },
+        { label: "MAE out-of-sample", value: at.mae !== null && at.mae !== undefined ? fmt(at.mae * 100, 3) + "%" : "N/A", detail: "" },
+        { label: "RMSE out-of-sample", value: at.rmse !== null && at.rmse !== undefined ? fmt(at.rmse * 100, 3) + "%" : "N/A", detail: "" },
+        { label: "Precisión direccional", value: dirAccStr, cls: dirAccCls, detail: dirAccDiag },
+        { label: "Muestras evaluadas", value: at.n_samples ? fmt(at.n_samples, 0) : "N/A", detail: "Walk-forward 1-step" },
+      ];
+
+      $.arimaDiagnostics.innerHTML =
+        renderDiagBlock("Parámetros", arimaParamRows) +
+        renderDiagBlock("Validación", arimaValidRows);
+    } else {
+      $.arimaDiagnostics.innerHTML = '<p class="mc-detail">ARIMA no disponible</p>';
+      $.arimaDiagSubtitle.textContent = "Auto-ARIMA · selección por AIC";
+    }
+
+    /* ── Model Comparison Table ── */
+    var comp = state.comparisonResult;
+    if (comp && comp.comparison && comp.comparison.length > 0) {
+      var tableHtml =
+        '<table class="comparison-tbl">' +
+        '<thead><tr>' +
+          '<th>Métrica</th>' +
+          '<th>ARIMA</th>' +
+          '<th>GARCH(1,1)</th>' +
+        '</tr></thead><tbody>';
+
+      comp.comparison.forEach(function (row) {
+        var aClass = row.winner === "arima" ? "winner" : "";
+        var gClass = row.winner === "garch" ? "winner" : "";
+        tableHtml +=
+          '<tr>' +
+            '<td class="cmp-label">' + escHtml(row.label) + '</td>' +
+            '<td class="cmp-val ' + aClass + '">' + escHtml(row.arima) + '</td>' +
+            '<td class="cmp-val ' + gClass + '">' + escHtml(row.garch) + '</td>' +
+          '</tr>';
+      });
+
+      tableHtml += '</tbody></table>';
+      $.comparisonTable.innerHTML = tableHtml;
+
+      /* ── Verdict ── */
+      if (comp.verdict) {
+        var v = comp.verdict;
+        var verdictIcon = v.best_forecast === "none" ? "○" : v.best_forecast === "arima" ? "▲" : "—";
+        var volIcon = v.best_volatility === "garch" ? "▲" : v.best_volatility === "unstable" ? "!" : "—";
+
+        $.comparisonVerdict.innerHTML =
+          '<div class="verdict-row">' +
+            '<span class="verdict-icon">' + verdictIcon + '</span>' +
+            '<div class="verdict-text">' +
+              '<div class="verdict-title">Pronóstico de retornos</div>' +
+              '<div class="verdict-detail">' + escHtml(v.forecast_reason) + '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="verdict-row">' +
+            '<span class="verdict-icon">' + volIcon + '</span>' +
+            '<div class="verdict-text">' +
+              '<div class="verdict-title">Pronóstico de volatilidad</div>' +
+              '<div class="verdict-detail">' + escHtml(v.volatility_reason) + '</div>' +
+            '</div>' +
+          '</div>';
+      }
+    } else {
+      $.comparisonTable.innerHTML = '<p class="mc-detail">Comparación no disponible</p>';
+      $.comparisonVerdict.innerHTML = '';
     }
 
     /* ── Warnings ── */

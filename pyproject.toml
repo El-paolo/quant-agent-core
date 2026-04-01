@@ -17,6 +17,8 @@ dependencies = [
     "yfinance>=1.2.0",
     "arch>=7.0.0",
     "hmmlearn>=0.3.0",
+    "pmdarima>=2.0.0",
+    "statsmodels>=0.14.0",
 ]
 
 [dependency-groups]

@@ -572,6 +572,17 @@
             </div>
           </div>
 
+          <!-- ARIMA Diagnostics -->
+          <div class="chart-section">
+            <div class="chart-section-header">
+              <div>
+                <span class="chart-title">Diagnóstico ARIMA</span>
+                <span class="chart-subtitle" id="arima-diag-subtitle">Auto-ARIMA · selección por AIC</span>
+              </div>
+            </div>
+            <div class="models-diagnostics" id="arima-diagnostics"></div>
+          </div>
+
           <!-- GARCH Diagnostics -->
           <div class="chart-section">
             <div class="chart-section-header">
@@ -581,6 +592,18 @@
               </div>
             </div>
             <div class="models-diagnostics" id="models-diagnostics"></div>
+          </div>
+
+          <!-- Model Comparison Table -->
+          <div class="chart-section">
+            <div class="chart-section-header">
+              <div>
+                <span class="chart-title">Comparador de Modelos</span>
+                <span class="chart-subtitle">ARIMA vs GARCH · métricas estandarizadas</span>
+              </div>
+            </div>
+            <div id="comparison-table"></div>
+            <div id="comparison-verdict" class="comparison-verdict"></div>
           </div>
 
           <!-- Warnings -->
@@ -772,6 +795,42 @@
                 <li><strong>Sensibilidad a inicialización:</strong> EM puede converger a óptimos locales. Se usa <code>random_state=42</code> para reproducibilidad, pero distintos seeds pueden producir asignaciones de estado diferentes.</li>
                 <li><strong>Look-ahead en decodificación:</strong> La secuencia Viterbi usa toda la serie (incluyendo test) para decodificar. Esto es adecuado para análisis contextual pero no para simular decisiones en tiempo real.</li>
                 <li>Las distribuciones graficadas son las gaussianas del train set aplicadas a todo el rango de retornos observados.</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="method-card method-card--wide">
+            <h3 class="method-name">ARIMA (Auto)</h3>
+            <p class="method-subtitle">Autoregressive Integrated Moving Average</p>
+            <dl class="method-params">
+              <div class="method-param"><dt>Selección de orden</dt><dd>Auto-ARIMA (stepwise, AIC)</dd></div>
+              <div class="method-param"><dt>Búsqueda</dt><dd>p,q ∈ [0,5], d ∈ [0,2]</dd></div>
+              <div class="method-param"><dt>Estacionalidad</dt><dd>No (retornos diarios)</dd></div>
+              <div class="method-param"><dt>Input</dt><dd>Log-returns diarios</dd></div>
+              <div class="method-param"><dt>Horizonte default</dt><dd>5 días</dd></div>
+              <div class="method-param"><dt>IC default</dt><dd>95%</dd></div>
+              <div class="method-param"><dt>Train/Test</dt><dd>80/20 temporal (sin shuffle)</dd></div>
+              <div class="method-param"><dt>Obs mínimas</dt><dd>60</dd></div>
+              <div class="method-param"><dt>Evaluación OOS</dt><dd>Walk-forward 1-step</dd></div>
+            </dl>
+            <div class="method-assumptions">
+              <h4 class="method-assumptions-title">Supuestos</h4>
+              <ul class="method-assumptions-list">
+                <li><strong>Linealidad:</strong> ARIMA modela dependencias lineales en la serie. No captura relaciones no lineales ni cambios de régimen.</li>
+                <li><strong>Estacionariedad (tras diferenciación):</strong> Asume que la serie diferenciada d veces es estacionaria — media y varianza constantes. El parámetro d se selecciona automáticamente.</li>
+                <li><strong>Residuos ruido blanco:</strong> Los residuos del modelo ajustado deben ser no correlacionados. Se valida con el test de Ljung-Box (p > 0.05 indica buena especificación).</li>
+                <li><strong>Innovaciones gaussianas:</strong> Los intervalos de confianza asumen residuos normales. Colas pesadas en retornos financieros pueden causar subestimación de la incertidumbre.</li>
+                <li><strong>Estructura temporal estable:</strong> Los coeficientes AR y MA son constantes. En la práctica, la dinámica de retornos puede cambiar tras eventos macro o cambios de régimen.</li>
+              </ul>
+            </div>
+            <div class="method-limitations">
+              <h4 class="method-assumptions-title">Limitaciones y validación</h4>
+              <ul class="method-assumptions-list">
+                <li><strong>ARIMA(0,0,0) es un resultado válido:</strong> Significa que los retornos son ruido blanco — no hay estructura temporal explotable. Esto es común en mercados eficientes y es la respuesta honesta.</li>
+                <li><strong>Walk-forward evaluation:</strong> El modelo se entrena en el 80% inicial. Para cada observación de test, predice 1-step, luego incorpora el valor real y avanza. Simula uso real sin look-ahead.</li>
+                <li><strong>Precisión direccional:</strong> Mide si el modelo predice correctamente el signo del retorno. >55% es superior al azar, pero predicciones cercanas a cero se excluyen como "sin opinión".</li>
+                <li><strong>No modela volatilidad:</strong> ARIMA pronostica la media condicional (retorno esperado), no la varianza. Para volatilidad, ver GARCH.</li>
+                <li>Los intervalos de confianza se expanden rápidamente — el pronóstico a más de 5-10 días suele tener poco valor informativo.</li>
               </ul>
             </div>
           </article>
