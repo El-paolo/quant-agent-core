@@ -2,40 +2,39 @@
    FINA — Q&A Assistant (Drawer)
    ============================================================ */
 
-(function () {
+(() => {
   "use strict";
 
-  var F = window.FINA;
-  var state = F.state;
-  var $ = F.$;
-  var escHtml = F.escHtml;
+  const F = window.FINA;
+  const state = F.state;
+  const $ = F.$;
 
   /* ─── Toggle drawer ─── */
-  function openDrawer() {
+  const openDrawer = () => {
     state.chatOpen = true;
     $.assistantDrawer.classList.remove("hidden");
     $.assistantFab.classList.add("hidden");
     $.assistantInput.focus();
-  }
+  };
 
-  function closeDrawer() {
+  const closeDrawer = () => {
     state.chatOpen = false;
     $.assistantDrawer.classList.add("hidden");
     $.assistantFab.classList.remove("hidden");
-  }
+  };
 
   $.assistantFab.addEventListener("click", openDrawer);
   $.assistantClose.addEventListener("click", closeDrawer);
 
   /* ─── Gather context from current state ─── */
-  function gatherContext() {
-    var ctx = {};
+  const gatherContext = () => {
+    const ctx = {};
 
     if (state.ticker) ctx.ticker = state.ticker;
     if (state.period) ctx.period = state.period;
 
     if (state.analysisResult && state.analysisResult.data) {
-      var c = state.analysisResult.data.computed || {};
+      const c = state.analysisResult.data.computed || {};
       if (c.sharpe) ctx.sharpe = F.fmt(c.sharpe.sharpe_ratio);
       if (c.sortino) ctx.sortino = F.fmt(c.sortino.sortino_ratio);
       if (c.beta) ctx.beta = F.fmt(c.beta.beta);
@@ -45,7 +44,7 @@
     }
 
     if (state.modelsResult) {
-      var m = state.modelsResult;
+      const m = state.modelsResult;
       if (m.garch && m.garch.diagnostics) {
         ctx.garch_persistence = F.fmt(m.garch.diagnostics.persistence, 4);
       }
@@ -62,30 +61,30 @@
     }
 
     return Object.keys(ctx).length > 0 ? ctx : null;
-  }
+  };
 
   /* ─── Render a message bubble ─── */
-  function appendMessage(role, text) {
-    var div = document.createElement("div");
-    div.className = "assistant-msg assistant-msg--" + role;
+  const appendMessage = (role, text) => {
+    const div = document.createElement("div");
+    div.className = `assistant-msg assistant-msg--${role}`;
     div.textContent = text;
     $.assistantMessages.appendChild(div);
     $.assistantMessages.scrollTop = $.assistantMessages.scrollHeight;
     return div;
-  }
+  };
 
   /* ─── Send question ─── */
-  function sendQuestion(question) {
+  const sendQuestion = (question) => {
     appendMessage("user", question);
 
-    var loadingEl = appendMessage("assistant", "...");
+    const loadingEl = appendMessage("assistant", "...");
     loadingEl.classList.add("assistant-msg--loading");
 
     $.assistantInput.disabled = true;
     $.assistantSend.disabled = true;
 
-    var ctx = gatherContext();
-    var body = { question: question };
+    const ctx = gatherContext();
+    const body = { question };
     if (ctx && ctx.ticker) body.ticker = ctx.ticker;
     if (ctx) body.context = ctx;
 
@@ -94,30 +93,30 @@
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     })
-      .then(function (r) {
-        if (!r.ok) return r.json().then(function (e) { throw new Error(e.detail || "Error " + r.status); });
+      .then((r) => {
+        if (!r.ok) return r.json().then((e) => { throw new Error(e.detail || `Error ${r.status}`); });
         return r.json();
       })
-      .then(function (data) {
+      .then((data) => {
         loadingEl.textContent = data.answer;
         loadingEl.classList.remove("assistant-msg--loading");
       })
-      .catch(function (err) {
-        loadingEl.textContent = "Error: " + err.message;
+      .catch((err) => {
+        loadingEl.textContent = `Error: ${err.message}`;
         loadingEl.classList.remove("assistant-msg--loading");
         loadingEl.classList.add("assistant-msg--error");
       })
-      .finally(function () {
+      .finally(() => {
         $.assistantInput.disabled = false;
         $.assistantSend.disabled = false;
         $.assistantInput.focus();
       });
-  }
+  };
 
   /* ─── Form submit ─── */
-  $.assistantForm.addEventListener("submit", function (e) {
+  $.assistantForm.addEventListener("submit", (e) => {
     e.preventDefault();
-    var question = $.assistantInput.value.trim();
+    const question = $.assistantInput.value.trim();
     if (!question) return;
     $.assistantInput.value = "";
     sendQuestion(question);

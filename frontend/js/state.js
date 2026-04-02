@@ -2,27 +2,27 @@
    FINA — State, Constants, Helpers, DOM References
    ============================================================ */
 
-(function () {
+(() => {
   "use strict";
 
   /* ─── Register zoom plugin ─── */
   if (window.ChartZoom) Chart.register(window.ChartZoom);
 
   /* ─── Candlestick wick plugin (draws high/low lines on floating bars) ─── */
-  var candleWickPlugin = {
+  const candleWickPlugin = {
     id: "candleWick",
-    afterDatasetsDraw: function (chart) {
-      var meta = chart.getDatasetMeta(0);
+    afterDatasetsDraw(chart) {
+      const meta = chart.getDatasetMeta(0);
       if (!meta || !meta.data || !chart.data.datasets[0]._ohlc) return;
-      var ctx = chart.ctx;
-      var ohlc = chart.data.datasets[0]._ohlc;
+      const ctx = chart.ctx;
+      const ohlc = chart.data.datasets[0]._ohlc;
       ctx.save();
       ctx.lineWidth = 1.2;
-      meta.data.forEach(function (bar, i) {
+      meta.data.forEach((bar, i) => {
         if (!ohlc[i]) return;
-        var high = chart.scales.y.getPixelForValue(ohlc[i].high);
-        var low  = chart.scales.y.getPixelForValue(ohlc[i].low);
-        var x    = bar.x;
+        const high = chart.scales.y.getPixelForValue(ohlc[i].high);
+        const low  = chart.scales.y.getPixelForValue(ohlc[i].low);
+        const x    = bar.x;
         ctx.strokeStyle = ohlc[i].close >= ohlc[i].open ? "#006d4a" : "#ba1b24";
         ctx.beginPath();
         ctx.moveTo(x, high);
@@ -35,12 +35,12 @@
   Chart.register(candleWickPlugin);
 
   /* ─── Constants ─── */
-  var ALL_METRICS = [
+  const ALL_METRICS = [
     "returns", "volatility", "rolling_volatility", "sharpe",
     "sortino", "rsi", "macd", "bollinger", "beta"
   ];
 
-  var CHART_COLORS = {
+  const CHART_COLORS = {
     line:     "#1a56db",
     positive: "#006d4a",
     negative: "#ba1b24",
@@ -60,7 +60,7 @@
   };
 
   /* ─── Application State ─── */
-  var state = {
+  const state = {
     ticker: "",
     period: "1y",
     metrics: ALL_METRICS.slice(),
@@ -81,11 +81,11 @@
   };
 
   /* Chart instances — destroyed before re-creating */
-  var charts = { vol: null, bb: null, volume: null, rsi: null, macd: null, techBb: null, price: null, garchVol: null, garchForecast: null, hmmRegimes: null, hmmDist: null };
-  var priceChartMode = "candle";
+  const charts = { vol: null, bb: null, volume: null, rsi: null, macd: null, techBb: null, price: null, garchVol: null, garchForecast: null, hmmRegimes: null, hmmDist: null };
+  let priceChartMode = "candle";
 
   /* ─── DOM refs ─── */
-  var $ = {
+  const $ = {
     ticker:       document.getElementById("ticker-input"),
     period:       document.getElementById("period-select"),
     analyzeBtn:   document.getElementById("analyze-btn"),
@@ -184,66 +184,66 @@
   };
 
   /* ─── Helpers ─── */
-  var TICKER_RE = /^[A-Z0-9\-=.]{1,20}$/;
+  const TICKER_RE = /^[A-Z0-9\-=.]{1,20}$/;
 
-  function show(el) { el.classList.remove("hidden"); }
-  function hide(el) { el.classList.add("hidden"); }
+  const show = (el) => el.classList.remove("hidden");
+  const hide = (el) => el.classList.add("hidden");
 
-  function fmt(value, decimals) {
+  const fmt = (value, decimals) => {
     if (value === null || value === undefined || isNaN(value)) return "N/A";
     return Number(value).toFixed(decimals === undefined ? 2 : decimals);
-  }
+  };
 
-  function fmtPct(value, decimals) {
+  const fmtPct = (value, decimals) => {
     if (value === null || value === undefined || isNaN(value)) return "N/A";
-    return (Number(value) * 100).toFixed(decimals === undefined ? 1 : decimals) + "%";
-  }
+    return `${(Number(value) * 100).toFixed(decimals === undefined ? 1 : decimals)}%`;
+  };
 
-  function fmtSign(value, decimals) {
+  const fmtSign = (value, decimals) => {
     if (value === null || value === undefined || isNaN(value)) return "N/A";
-    var n = Number(value) * 100;
-    var prefix = n >= 0 ? "+" : "";
-    return prefix + n.toFixed(decimals === undefined ? 1 : decimals) + "%";
-  }
+    const n = Number(value) * 100;
+    const prefix = n >= 0 ? "+" : "";
+    return `${prefix}${n.toFixed(decimals === undefined ? 1 : decimals)}%`;
+  };
 
-  function fmtCompact(n) {
+  const fmtCompact = (n) => {
     if (n === null || n === undefined) return "N/A";
-    if (n >= 1e9) return (n / 1e9).toFixed(1) + "B";
-    if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
-    if (n >= 1e3) return (n / 1e3).toFixed(0) + "K";
+    if (n >= 1e9) return `${(n / 1e9).toFixed(1)}B`;
+    if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
+    if (n >= 1e3) return `${(n / 1e3).toFixed(0)}K`;
     return String(Math.round(n));
-  }
+  };
 
-  function sentiment(value) {
+  const sentiment = (value) => {
     if (value === null || value === undefined || isNaN(value)) return "na";
     return Number(value) >= 0 ? "positive" : "negative";
-  }
+  };
 
-  function escHtml(str) {
-    var div = document.createElement("div");
+  const escHtml = (str) => {
+    const div = document.createElement("div");
     div.textContent = String(str);
     return div.innerHTML;
-  }
+  };
 
   /* ─── Expose namespace ─── */
   window.FINA = {
-    ALL_METRICS: ALL_METRICS,
-    CHART_COLORS: CHART_COLORS,
-    TICKER_RE: TICKER_RE,
-    state: state,
-    charts: charts,
-    priceChartMode: priceChartMode,
-    $: $,
-    show: show,
-    hide: hide,
-    fmt: fmt,
-    fmtPct: fmtPct,
-    fmtSign: fmtSign,
-    fmtCompact: fmtCompact,
-    sentiment: sentiment,
-    escHtml: escHtml,
+    ALL_METRICS,
+    CHART_COLORS,
+    TICKER_RE,
+    state,
+    charts,
+    priceChartMode,
+    $,
+    show,
+    hide,
+    fmt,
+    fmtPct,
+    fmtSign,
+    fmtCompact,
+    sentiment,
+    escHtml,
     /* Populated by other modules */
-    setPriceChartMode: function (m) { priceChartMode = m; window.FINA.priceChartMode = m; },
-    getPriceChartMode: function () { return priceChartMode; },
+    setPriceChartMode: (m) => { priceChartMode = m; window.FINA.priceChartMode = m; },
+    getPriceChartMode: () => priceChartMode,
   };
 })();
