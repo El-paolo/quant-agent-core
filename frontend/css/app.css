@@ -1875,7 +1875,218 @@ legend { display: block; }
   cursor: default;
 }
 
-/* --- 21. Reduced Motion --- */
+/* --- 21. Backtest Panel --- */
+
+.backtest-config {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.bt-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.bt-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.bt-label {
+  font-size: 0.72rem;
+  color: var(--txt-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.bt-date-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.bt-date {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--txt-primary);
+  font-size: 0.82rem;
+  padding: 0.4rem 0.6rem;
+  flex: 1;
+  font-family: inherit;
+}
+
+.bt-date:focus {
+  outline: none;
+  border-color: var(--accent, #4fc3f7);
+}
+
+.bt-date-sep {
+  color: var(--txt-secondary);
+  font-size: 0.9rem;
+}
+
+.bt-options-row {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+}
+
+.bt-checkboxes {
+  display: flex;
+  gap: 0.8rem;
+}
+
+.bt-check {
+  font-size: 0.82rem;
+  color: var(--txt-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+}
+
+.bt-check input {
+  accent-color: var(--accent, #4fc3f7);
+}
+
+.bt-capital-field {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.bt-input-sm {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--txt-primary);
+  font-size: 0.82rem;
+  padding: 0.4rem 0.6rem;
+  width: 7rem;
+  font-family: inherit;
+}
+
+.bt-input-sm:focus {
+  outline: none;
+  border-color: var(--accent, #4fc3f7);
+}
+
+.bt-run-btn {
+  margin-left: auto;
+}
+
+/* Periods row */
+.bt-periods-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem;
+  margin-bottom: 1.2rem;
+}
+
+.bt-period-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.7rem 1rem;
+}
+
+.bt-period-label {
+  font-size: 0.7rem;
+  color: var(--txt-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.2rem;
+}
+
+.bt-period-value {
+  font-size: 0.88rem;
+  color: var(--txt-primary);
+  font-weight: 500;
+}
+
+.bt-period-detail {
+  font-size: 0.75rem;
+  color: var(--txt-secondary);
+  margin-top: 0.15rem;
+}
+
+/* Sections */
+.bt-section {
+  margin-bottom: 1.5rem;
+}
+
+.bt-section-title {
+  font-size: 0.82rem;
+  color: var(--txt-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.6rem;
+  font-weight: 600;
+}
+
+/* Benchmark row */
+.bt-benchmark-row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.bt-bm-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.bt-bm-label {
+  font-size: 0.7rem;
+  color: var(--txt-secondary);
+}
+
+.bt-bm-value {
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+/* Signal cards */
+.bt-signal-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem 0.8rem;
+  font-size: 0.82rem;
+  color: var(--txt-primary);
+  margin-bottom: 0.4rem;
+}
+
+/* Trades table */
+.bt-trades-wrap {
+  overflow-x: auto;
+}
+
+/* Metrics grid (reuses .metric-card from overview) */
+.bt-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 600px) {
+  .bt-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .bt-periods-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- 22. Reduced Motion --- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

@@ -65,6 +65,9 @@
     if (prevPanel === "models" && panelName !== "models") {
       ["garchVol", "garchForecast", "hmmRegimes", "hmmDist"].forEach(F.destroyChart);
     }
+    if (prevPanel === "backtest" && panelName !== "backtest") {
+      ["btEquity", "btPositions"].forEach(F.destroyChart);
+    }
 
     /* Hide all panels */
     hide($.emptyState);
@@ -75,6 +78,7 @@
     hide($.techPanel);
     hide($.modelsPanel);
     hide($.newsPanel);
+    hide($.backtestPanel);
     hide($.methodologyPanel);
 
     state.activePanel = panelName;
@@ -138,6 +142,9 @@
         $.modelsPanelMeta.textContent = "Ingresa un ticker y presiona Analizar";
         show($.modelsPanelEmpty);
       }
+    } else if (panelName === "backtest") {
+      show($.backtestPanel);
+      F.loadBacktestPanel();
     } else if (panelName === "methodology") {
       show($.methodologyPanel);
     }
@@ -181,6 +188,7 @@
     hide($.techPanel);
     hide($.modelsPanel);
     hide($.newsPanel);
+    hide($.backtestPanel);
     hide($.methodologyPanel);
     show($.loadingState);
 

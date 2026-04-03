@@ -25,5 +25,9 @@ class ValidationError(Exception):
     """Raised when input validation fails at any layer boundary."""
 
 
+class BacktestError(MetricsError):
+    """Raised when backtesting fails (insufficient data, invalid date ranges)."""
+
+
 class ConfigError(Exception):
     """Raised when required configuration (env vars, settings) is missing or invalid."""

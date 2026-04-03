@@ -75,13 +75,15 @@
     comparisonResult: null,
     loading: { analysis: false, agent: false, timeseries: false, models: false },
     errors: [],
+    /* Backtest */
+    backtestResult: null,
     /* Assistant */
     chatMessages: [],
     chatOpen: false,
   };
 
   /* Chart instances — destroyed before re-creating */
-  const charts = { vol: null, bb: null, volume: null, rsi: null, macd: null, techBb: null, price: null, garchVol: null, garchForecast: null, hmmRegimes: null, hmmDist: null };
+  const charts = { vol: null, bb: null, volume: null, rsi: null, macd: null, techBb: null, price: null, garchVol: null, garchForecast: null, hmmRegimes: null, hmmDist: null, btEquity: null, btPositions: null };
   let priceChartMode = "candle";
 
   /* ─── DOM refs ─── */
@@ -171,6 +173,7 @@
     modelsWarningsInner:   document.getElementById("models-warnings-inner"),
     /* Methodology panel */
     methodologyPanel:    document.getElementById("methodology-panel"),
+    backtestPanel:       document.getElementById("backtest-panel"),
     /* Assistant drawer */
     assistantFab:      document.getElementById("assistant-fab"),
     assistantDrawer:   document.getElementById("assistant-drawer"),
@@ -179,6 +182,29 @@
     assistantForm:     document.getElementById("assistant-form"),
     assistantInput:    document.getElementById("assistant-input"),
     assistantSend:     document.getElementById("assistant-send"),
+    /* Backtest */
+    btTrainStart:    document.getElementById("bt-train-start"),
+    btTrainEnd:      document.getElementById("bt-train-end"),
+    btTestStart:     document.getElementById("bt-test-start"),
+    btTestEnd:       document.getElementById("bt-test-end"),
+    btUseArima:      document.getElementById("bt-use-arima"),
+    btUseHmm:        document.getElementById("bt-use-hmm"),
+    btUseGarch:      document.getElementById("bt-use-garch"),
+    btCapital:       document.getElementById("bt-capital"),
+    btRun:           document.getElementById("bt-run"),
+    btLoading:       document.getElementById("bt-loading"),
+    btError:         document.getElementById("bt-error"),
+    btErrorMsg:      document.getElementById("bt-error-msg"),
+    btResults:       document.getElementById("bt-results"),
+    btPeriodsRow:    document.getElementById("bt-periods-row"),
+    btMetricsGrid:   document.getElementById("bt-metrics-grid"),
+    btBenchmarkRow:  document.getElementById("bt-benchmark-row"),
+    btTradesWrap:    document.getElementById("bt-trades-wrap"),
+    btSignalsSummary:document.getElementById("bt-signals-summary"),
+    btWarnings:      document.getElementById("bt-warnings"),
+    btWarningsInner: document.getElementById("bt-warnings-inner"),
+    btPanelTicker:   document.getElementById("backtest-panel-ticker"),
+    btPanelMeta:     document.getElementById("backtest-panel-meta"),
     /* Rail */
     railLinks: document.querySelectorAll(".rail-link[data-panel]"),
   };

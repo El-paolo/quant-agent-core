@@ -11,7 +11,9 @@ from fina.core.exceptions import ConfigError
 
 
 class TestSettings:
-    def test_default_keys_are_empty(self) -> None:
+    def test_default_keys_are_empty(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("NEWS_API_KEY", raising=False)
         s = Settings(_env_file=None)
         assert s.anthropic_api_key == ""
         assert s.news_api_key == ""
