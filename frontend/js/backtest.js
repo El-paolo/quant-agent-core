@@ -315,9 +315,253 @@
     $.btSignalsSummary.innerHTML = html || '<p class="mc-detail">Sin señales</p>';
   };
 
+  /* ─── Monte Carlo ─── */
+
+  const runMonteCarlo = () => {
+    if (!state.backtestResult) return;
+
+    const n = parseInt($.btMcN.value, 10);
+    if (isNaN(n) || n < 50 || n > 300) {
+      $.btMcErrorMsg.textContent = "Simulaciones debe estar entre 50 y 300";
+      show($.btMcError);
+      return;
+    }
+
+    hide($.btMcResults);
+    hide($.btMcError);
+    show($.btMcLoading);
+    $.btMcRun.disabled = true;
+
+    const body = {
+      ticker: state.ticker,
+      train_start: $.btTrainStart.value,
+      train_end: $.btTrainEnd.value,
+      test_start: $.btTestStart.value,
+      test_end: $.btTestEnd.value,
+      models: state.backtestResult.models_used,
+      initial_capital: parseFloat($.btCapital.value) || 10000,
+      n_simulations: n,
+    };
+
+    fetch("/backtest/montecarlo/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+      .then((r) => {
+        if (!r.ok) return r.json().then((e) => { throw new Error(e.detail || `Error ${r.status}`); });
+        return r.json();
+      })
+      .then((data) => {
+        state.monteCarloResult = data;
+        hide($.btMcLoading);
+        renderMonteCarloResults(data);
+        $.btMcRun.disabled = false;
+      })
+      .catch((err) => {
+        hide($.btMcLoading);
+        $.btMcErrorMsg.textContent = err.message;
+        show($.btMcError);
+        $.btMcRun.disabled = false;
+      });
+  };
+
+  const renderMonteCarloResults = (data) => {
+    show($.btMcResults);
+    renderMCFanChart(data.fan_chart, parseFloat($.btCapital.value) || 10000);
+    renderMCRiskCards(data.metrics_distribution, data.n_simulations);
+    renderMCDistGrid(data.metrics_distribution);
+
+    if (data.warnings && data.warnings.length > 0) {
+      $.btMcWarningsInner.innerHTML = data.warnings.map((w) =>
+        `<div class="warning-item"><span class="warning-icon">!</span><span>${escHtml(w)}</span></div>`
+      ).join("");
+      show($.btMcWarnings);
+    } else {
+      hide($.btMcWarnings);
+    }
+  };
+
+  const renderMCFanChart = (fanChart, initialCapital) => {
+    if (charts.btMcFan) charts.btMcFan.destroy();
+
+    const labels = fanChart.map((d) => d.date);
+    const p5  = fanChart.map((d) => d.p5);
+    const p25 = fanChart.map((d) => d.p25);
+    const p50 = fanChart.map((d) => d.p50);
+    const p75 = fanChart.map((d) => d.p75);
+    const p95 = fanChart.map((d) => d.p95);
+
+    const ctx = document.getElementById("chart-bt-mc-fan").getContext("2d");
+    charts.btMcFan = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "P95 (optimista)",
+            data: p95,
+            borderColor: "#34d399",
+            backgroundColor: "rgba(52,211,153,0.08)",
+            fill: "+1",
+            borderWidth: 1.2,
+            pointRadius: 0,
+            tension: 0.2,
+          },
+          {
+            label: "P75",
+            data: p75,
+            borderColor: "#6ee7b7",
+            backgroundColor: "rgba(110,231,183,0.10)",
+            fill: "+1",
+            borderWidth: 1,
+            pointRadius: 0,
+            tension: 0.2,
+          },
+          {
+            label: "P50 (mediana)",
+            data: p50,
+            borderColor: "#f5f5f5",
+            backgroundColor: "rgba(245,245,245,0.06)",
+            fill: "+1",
+            borderWidth: 2.2,
+            pointRadius: 0,
+            tension: 0.2,
+          },
+          {
+            label: "P25",
+            data: p25,
+            borderColor: "#fbbf24",
+            backgroundColor: "rgba(251,191,36,0.10)",
+            fill: "+1",
+            borderWidth: 1,
+            pointRadius: 0,
+            tension: 0.2,
+          },
+          {
+            label: "P5 (pesimista)",
+            data: p5,
+            borderColor: "#f87171",
+            backgroundColor: "rgba(248,113,113,0.08)",
+            fill: false,
+            borderWidth: 1.2,
+            pointRadius: 0,
+            tension: 0.2,
+          },
+          {
+            label: "Capital inicial",
+            data: new Array(labels.length).fill(initialCapital),
+            borderColor: "rgba(255,255,255,0.20)",
+            borderDash: [4, 4],
+            borderWidth: 1,
+            pointRadius: 0,
+            fill: false,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: {
+            labels: {
+              color: "#c0c5c8",
+              font: { size: 10 },
+              filter: (item) => item.text !== "P75" && item.text !== "P25",
+            },
+          },
+          tooltip: {
+            callbacks: {
+              label: (c) => `${c.dataset.label}: $${c.parsed.y.toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
+            },
+          },
+        },
+        scales: {
+          x: { ticks: { color: "#8a9194", maxTicksLimit: 8, font: { size: 10 } }, grid: { color: "rgba(255,255,255,0.04)" } },
+          y: { ticks: { color: "#8a9194", callback: (v) => `$${v.toLocaleString()}`, font: { size: 10 } }, grid: { color: "rgba(255,255,255,0.04)" } },
+        },
+      },
+    });
+  };
+
+  const renderMCRiskCards = (md, nSims) => {
+    const varPct = (md.var_95 * 100).toFixed(1);
+    const cvarPct = (md.cvar_95 * 100).toFixed(1);
+    const probProfit = (md.prob_profit * 100).toFixed(0);
+    const probBeat = (md.prob_beat_benchmark * 100).toFixed(0);
+
+    $.btMcRiskRow.innerHTML =
+      `<div class="bt-mc-risk-card">` +
+        `<div class="bt-mc-risk-label">VaR 95%</div>` +
+        `<div class="bt-mc-risk-value negative">${varPct}%</div>` +
+        `<div class="bt-mc-risk-detail">Pérdida máx. esperada 95% de las sims</div>` +
+      `</div>` +
+      `<div class="bt-mc-risk-card">` +
+        `<div class="bt-mc-risk-label">CVaR 95%</div>` +
+        `<div class="bt-mc-risk-value negative">${cvarPct}%</div>` +
+        `<div class="bt-mc-risk-detail">Pérdida promedio en el 5% peor de sims</div>` +
+      `</div>` +
+      `<div class="bt-mc-risk-card">` +
+        `<div class="bt-mc-risk-label">Prob. ganancia</div>` +
+        `<div class="bt-mc-risk-value ${parseInt(probProfit, 10) >= 50 ? "positive" : "negative"}">${probProfit}%</div>` +
+        `<div class="bt-mc-risk-detail">Sims que terminan en positivo</div>` +
+      `</div>` +
+      `<div class="bt-mc-risk-card">` +
+        `<div class="bt-mc-risk-label">Prob. superar B&H</div>` +
+        `<div class="bt-mc-risk-value ${parseInt(probBeat, 10) >= 50 ? "positive" : "negative"}">${probBeat}%</div>` +
+        `<div class="bt-mc-risk-detail">Sims que superan Buy & Hold</div>` +
+      `</div>` +
+      `<div class="bt-mc-risk-card">` +
+        `<div class="bt-mc-risk-label">Simulaciones</div>` +
+        `<div class="bt-mc-risk-value">${nSims}</div>` +
+        `<div class="bt-mc-risk-detail">Trayectorias usadas en la agregación</div>` +
+      `</div>`;
+  };
+
+  const renderMCDistGrid = (md) => {
+    const fmtPerc = (v) => `${(v * 100).toFixed(1)}%`;
+
+    const items = [
+      {
+        label: "Retorno total",
+        p5:  fmtPerc(md.total_return.p5),
+        p50: fmtPerc(md.total_return.p50),
+        p95: fmtPerc(md.total_return.p95),
+        pos: md.total_return.p50 >= 0,
+      },
+      {
+        label: "Max Drawdown",
+        p5:  fmtPerc(md.max_drawdown.p5),
+        p50: fmtPerc(md.max_drawdown.p50),
+        p95: fmtPerc(md.max_drawdown.p95),
+        pos: false,
+      },
+      {
+        label: "Sharpe",
+        p5:  md.sharpe_ratio.p5.toFixed(2),
+        p50: md.sharpe_ratio.p50.toFixed(2),
+        p95: md.sharpe_ratio.p95.toFixed(2),
+        pos: md.sharpe_ratio.p50 >= 0,
+      },
+    ];
+
+    $.btMcDistGrid.innerHTML = items.map((item) =>
+      `<div class="bt-mc-dist-card">` +
+        `<div class="bt-mc-dist-label">${escHtml(item.label)}</div>` +
+        `<div class="bt-mc-dist-row">` +
+          `<div class="bt-mc-dist-cell"><span class="bt-mc-perc-label">P5</span><span class="bt-mc-perc-val">${escHtml(item.p5)}</span></div>` +
+          `<div class="bt-mc-dist-cell highlight"><span class="bt-mc-perc-label">P50</span><span class="bt-mc-perc-val ${item.pos ? "positive" : "negative"}">${escHtml(item.p50)}</span></div>` +
+          `<div class="bt-mc-dist-cell"><span class="bt-mc-perc-label">P95</span><span class="bt-mc-perc-val">${escHtml(item.p95)}</span></div>` +
+        `</div>` +
+      `</div>`
+    ).join("");
+  };
+
   /* ─── Expose ─── */
   F.loadBacktestPanel = loadBacktestPanel;
 
   /* ─── Event Handlers ─── */
   $.btRun.addEventListener("click", runBacktest);
+  $.btMcRun.addEventListener("click", runMonteCarlo);
 })();

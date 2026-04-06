@@ -324,3 +324,24 @@ class BacktestResponse(BaseModel):
     positions: list[dict[str, Any]]
     trades: list[dict[str, Any]]
     warnings: list[str] = []
+
+
+class MonteCarloRequest(BacktestRequest):
+    n_simulations: int = 200
+
+    @field_validator("n_simulations")
+    @classmethod
+    def n_simulations_in_range(cls, v: int) -> int:
+        if not (50 <= v <= 300):
+            raise ValueError("n_simulations must be between 50 and 300")
+        return v
+
+
+class MonteCarloResponse(BaseModel):
+    ticker: str
+    n_simulations: int
+    train_period: dict[str, Any]
+    test_period: dict[str, Any]
+    fan_chart: list[dict[str, Any]]
+    metrics_distribution: dict[str, Any]
+    warnings: list[str] = []

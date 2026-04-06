@@ -60,6 +60,22 @@
       ctx.comparison_verdict = state.comparisonResult.verdict.summary_es;
     }
 
+    if (state.backtestResult && state.backtestResult.metrics) {
+      const s = state.backtestResult.metrics.strategy;
+      if (s) {
+        ctx.backtest_sharpe = F.fmt(s.sharpe_ratio, 2);
+        ctx.backtest_return = F.fmtSign(s.total_return);
+        ctx.backtest_max_drawdown = F.fmtPct(s.max_drawdown);
+      }
+    }
+
+    if (state.monteCarloResult && state.monteCarloResult.metrics_distribution) {
+      const md = state.monteCarloResult.metrics_distribution;
+      ctx.mc_prob_profit = F.fmtPct(md.prob_profit);
+      ctx.mc_var_95 = F.fmtPct(md.var_95);
+      ctx.mc_prob_beat_bh = F.fmtPct(md.prob_beat_benchmark);
+    }
+
     return Object.keys(ctx).length > 0 ? ctx : null;
   };
 

@@ -77,13 +77,14 @@
     errors: [],
     /* Backtest */
     backtestResult: null,
+    monteCarloResult: null,
     /* Assistant */
     chatMessages: [],
     chatOpen: false,
   };
 
   /* Chart instances — destroyed before re-creating */
-  const charts = { vol: null, bb: null, volume: null, rsi: null, macd: null, techBb: null, price: null, garchVol: null, garchForecast: null, hmmRegimes: null, hmmDist: null, btEquity: null, btPositions: null };
+  const charts = { vol: null, bb: null, volume: null, rsi: null, macd: null, techBb: null, price: null, garchVol: null, garchForecast: null, hmmRegimes: null, hmmDist: null, btEquity: null, btPositions: null, btMcFan: null };
   let priceChartMode = "candle";
 
   /* ─── DOM refs ─── */
@@ -205,6 +206,18 @@
     btWarningsInner: document.getElementById("bt-warnings-inner"),
     btPanelTicker:   document.getElementById("backtest-panel-ticker"),
     btPanelMeta:     document.getElementById("backtest-panel-meta"),
+    /* Monte Carlo */
+    btMcSection:     document.getElementById("bt-mc-section"),
+    btMcRun:         document.getElementById("bt-mc-run"),
+    btMcN:           document.getElementById("bt-mc-n"),
+    btMcLoading:     document.getElementById("bt-mc-loading"),
+    btMcError:       document.getElementById("bt-mc-error"),
+    btMcErrorMsg:    document.getElementById("bt-mc-error-msg"),
+    btMcResults:     document.getElementById("bt-mc-results"),
+    btMcRiskRow:     document.getElementById("bt-mc-risk-row"),
+    btMcDistGrid:    document.getElementById("bt-mc-dist-grid"),
+    btMcWarnings:    document.getElementById("bt-mc-warnings"),
+    btMcWarningsInner: document.getElementById("bt-mc-warnings-inner"),
     /* Rail */
     railLinks: document.querySelectorAll(".rail-link[data-panel]"),
   };

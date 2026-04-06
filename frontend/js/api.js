@@ -66,7 +66,7 @@
       ["garchVol", "garchForecast", "hmmRegimes", "hmmDist"].forEach(F.destroyChart);
     }
     if (prevPanel === "backtest" && panelName !== "backtest") {
-      ["btEquity", "btPositions"].forEach(F.destroyChart);
+      ["btEquity", "btPositions", "btMcFan"].forEach(F.destroyChart);
     }
 
     /* Hide all panels */

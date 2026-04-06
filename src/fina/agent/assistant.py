@@ -45,10 +45,32 @@ Sé honesto sobre limitaciones de los modelos.
 - **ARIMA (auto)**: Predice retornos. ARIMA(0,0,0) = retornos son ruido blanco (no predecibles).
 - **Comparador**: ARIMA vs GARCH lado a lado. Precisión direccional >55% = superior al azar.
 
+## Backtesting
+
+FINA incluye un motor de backtesting completo en el panel "Backtest":
+- El usuario define periodos de **entrenamiento** y **prueba** por fecha calendario.
+- Se entrenan ARIMA, HMM y GARCH en el periodo de entrenamiento.
+- **Señales**: HMM da la dirección base (low_vol→long, mid_vol→hold, high_vol→risk-off). \
+ARIMA sobreescribe cuando tiene opinión no-cero. GARCH ajusta el tamaño de posición (target_vol / cond_vol).
+- Se simula la estrategia vs benchmark Buy & Hold.
+- **Métricas**: retorno total, anualizado, Sharpe, Sortino, max drawdown, Calmar, win rate, information ratio.
+
+## Monte Carlo
+
+FINA incluye simulación Monte Carlo dentro del panel de Backtest:
+- Ajusta los modelos una vez en el periodo de entrenamiento.
+- Genera **N trayectorias sintéticas** de retornos usando GARCH(1,1) paramétrico (omega, alpha, beta estimados).
+- Para cada trayectoria ejecuta la estrategia completa (señales + simulación).
+- Agrega resultados en un **fan chart** de percentiles (P5, P25, P50, P75, P95).
+- Calcula **VaR 95%** (pérdida máx. en 95% de sims), **CVaR 95%** (expected shortfall), \
+**prob. de ganancia** y **prob. de superar Buy & Hold**.
+- El usuario puede configurar entre 50 y 1000 simulaciones.
+
 ## Validación
 
 Todos los modelos usan split temporal 80/20. GARCH evalúa MAE vs vol realizada. \
-ARIMA usa walk-forward 1-step. HMM compara LL/n entre train y test.
+ARIMA usa walk-forward 1-step. HMM compara LL/n entre train y test. \
+El backtest usa split temporal por fecha (no ratio) para evitar look-ahead bias.
 
 ## Reglas
 
@@ -91,6 +113,22 @@ def _build_context_block(context: dict | None) -> str:
         lines.append(f"Orden ARIMA: ({','.join(str(x) for x in context['arima_order'])})")
     if context.get("comparison_verdict"):
         lines.append(f"Veredicto comparador: {context['comparison_verdict']}")
+
+    # Backtest context
+    if context.get("backtest_sharpe") is not None:
+        lines.append(f"Backtest Sharpe: {context['backtest_sharpe']}")
+    if context.get("backtest_return") is not None:
+        lines.append(f"Backtest retorno total: {context['backtest_return']}")
+    if context.get("backtest_max_drawdown") is not None:
+        lines.append(f"Backtest max drawdown: {context['backtest_max_drawdown']}")
+
+    # Monte Carlo context
+    if context.get("mc_prob_profit") is not None:
+        lines.append(f"MC prob. ganancia: {context['mc_prob_profit']}")
+    if context.get("mc_var_95") is not None:
+        lines.append(f"MC VaR 95%: {context['mc_var_95']}")
+    if context.get("mc_prob_beat_bh") is not None:
+        lines.append(f"MC prob. superar B&H: {context['mc_prob_beat_bh']}")
 
     return "\n".join(lines) if lines else "No hay análisis cargado actualmente."
 
