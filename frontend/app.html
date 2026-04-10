@@ -231,6 +231,12 @@
         <!-- Metric Cards Grid -->
         <div class="metrics-grid" id="metrics-grid"></div>
 
+        <!-- Fundamentals -->
+        <div class="fundamentals-section hidden" id="fundamentals-section">
+          <h3 class="fundamentals-title">Fundamentales</h3>
+          <div class="fundamentals-grid" id="fundamentals-grid"></div>
+        </div>
+
         <!-- Warnings -->
         <div class="warnings hidden" id="warnings">
           <div class="warnings-inner" id="warnings-inner"></div>
@@ -242,9 +248,13 @@
       <div class="panel hidden" id="metrics-panel">
 
         <div class="panel-header">
-          <h2 class="panel-title" id="metrics-panel-ticker"></h2>
-          <div class="panel-meta" id="metrics-panel-meta"></div>
+          <div>
+            <h2 class="panel-title" id="metrics-panel-ticker"></h2>
+            <div class="panel-meta" id="metrics-panel-meta"></div>
+          </div>
+          <button class="pin-clear-btn" id="pin-clear-metrics" title="Limpiar pins">Limpiar pins</button>
         </div>
+        <p class="pin-hint">Doble-click en cualquier gráfico para fijar una fecha en todos</p>
 
         <!-- Loading skeleton for metrics panel -->
         <div class="panel-loading hidden" id="metrics-panel-loading">
@@ -404,9 +414,13 @@
       <!-- ── TECHNICALS PANEL ── -->
       <div id="technicals-panel" class="panel hidden">
         <div class="panel-header">
-          <h2 class="panel-title" id="tech-panel-ticker"></h2>
-          <span class="panel-meta" id="tech-panel-meta">Indicadores técnicos</span>
+          <div>
+            <h2 class="panel-title" id="tech-panel-ticker"></h2>
+            <span class="panel-meta" id="tech-panel-meta">Indicadores técnicos</span>
+          </div>
+          <button class="pin-clear-btn" id="pin-clear-tech" title="Limpiar pins">Limpiar pins</button>
         </div>
+        <p class="pin-hint">Doble-click en cualquier gráfico para fijar una fecha en todos</p>
 
         <!-- Loading -->
         <div id="tech-panel-loading" class="panel-loading hidden">

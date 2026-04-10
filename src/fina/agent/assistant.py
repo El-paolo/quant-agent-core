@@ -38,6 +38,22 @@ Sé honesto sobre limitaciones de los modelos.
 - **MACD**: Cruce de EMAs (12,26,9). Histograma >0 = momentum alcista.
 - **Bollinger Bands**: SMA-20 ± 2σ. Precio fuera de bandas = movimiento extremo.
 
+## Fundamentales de empresa
+
+FINA muestra datos fundamentales en el Overview (fuente: yfinance):
+- **EPS** (TTM y forward): beneficio por acción. EPS creciente = empresa ganando más.
+- **P/E** (TTM y forward): precio/beneficio. P/E alto = expectativa de crecimiento o sobrevaloración. P/E < 15 suele ser "valor".
+- **P/B** (price-to-book): precio vs valor contable. P/B < 1 puede indicar infravaloración.
+- **Márgenes**: neto (profit_margin), bruto (gross_margin), operativo (operating_margin). Margen neto >20% es saludable.
+- **D/E** (debt-to-equity): apalancamiento. D/E > 2 es alto riesgo. Varía por sector.
+- **Current Ratio**: liquidez. >1 = puede cubrir obligaciones corto plazo. <1 = riesgo de liquidez.
+- **ROE/ROA**: rentabilidad sobre equity/activos. ROE >15% es bueno. ROA depende del sector.
+- **Revenue Growth / EPS Growth**: crecimiento interanual. Negativo = contracción.
+- **Dividend Yield**: rendimiento por dividendos. >3% es atractivo para income investors.
+- **Market Cap**: tamaño de la empresa. Large cap >$10B, mid $2-10B, small <$2B.
+
+Estos datos NO están disponibles para ETFs, crypto u otros instrumentos sin estados financieros.
+
 ## Modelos cuantitativos
 
 - **GARCH(1,1)**: Modela volatilidad condicional. Persistencia α+β <1 = estacionario. No predice dirección.
@@ -129,6 +145,23 @@ def _build_context_block(context: dict | None) -> str:
         lines.append(f"MC VaR 95%: {context['mc_var_95']}")
     if context.get("mc_prob_beat_bh") is not None:
         lines.append(f"MC prob. superar B&H: {context['mc_prob_beat_bh']}")
+
+    # Fundamentals context
+    fund_map = {
+        "fund_eps": "EPS (TTM)",
+        "fund_forward_pe": "P/E Forward",
+        "fund_profit_margin": "Margen neto",
+        "fund_debt_to_equity": "D/E",
+        "fund_roe": "ROE",
+        "fund_revenue_growth": "Revenue Growth",
+        "fund_market_cap": "Market Cap",
+        "fund_sector": "Sector",
+        "fund_company_name": "Empresa",
+    }
+    for key, label in fund_map.items():
+        val = context.get(key)
+        if val is not None:
+            lines.append(f"{label}: {val}")
 
     return "\n".join(lines) if lines else "No hay análisis cargado actualmente."
 

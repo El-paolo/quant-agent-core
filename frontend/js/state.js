@@ -75,6 +75,8 @@
     comparisonResult: null,
     loading: { analysis: false, agent: false, timeseries: false, models: false },
     errors: [],
+    /* Fundamentals */
+    fundamentalsResult: null,
     /* Backtest */
     backtestResult: null,
     monteCarloResult: null,
@@ -113,6 +115,9 @@
     summaryBody:      document.getElementById("summary-body"),
     headlinesSection: document.getElementById("headlines-section"),
     headlinesList:    document.getElementById("headlines-list"),
+    /* Fundamentals */
+    fundamentalsSection: document.getElementById("fundamentals-section"),
+    fundamentalsGrid:    document.getElementById("fundamentals-grid"),
     /* Metrics panel */
     metricsPanel:        document.getElementById("metrics-panel"),
     metricsPanelTicker:  document.getElementById("metrics-panel-ticker"),
@@ -145,6 +150,9 @@
     rsiStats:            document.getElementById("rsi-stats"),
     macdStats:           document.getElementById("macd-stats"),
     techBbStats:         document.getElementById("tech-bb-stats"),
+    /* Pin controls */
+    pinClearTech:        document.getElementById("pin-clear-tech"),
+    pinClearMetrics:     document.getElementById("pin-clear-metrics"),
     /* Models panel */
     modelsPanel:           document.getElementById("models-panel"),
     modelsPanelTicker:     document.getElementById("models-panel-ticker"),

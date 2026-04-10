@@ -16,6 +16,106 @@
   const sentiment = F.sentiment;
   const $ = F.$;
 
+  /* ─── Pin System ─── */
+  const PIN_COLORS = ["#f87171", "#fbbf24", "#34d399", "#a78bfa", "#f472b6", "#38bdf8", "#fb923c", "#4ade80"];
+  const PIN_MAX = 8;
+
+  // Pin groups: charts that share the same date axis sync pins together
+  const pinGroups = {
+    technicals: { chartKeys: ["rsi", "macd", "techBb"], pins: [] },
+    metrics:    { chartKeys: ["vol", "bb", "volume", "price"], pins: [] },
+  };
+
+  const pinLinesPlugin = {
+    id: "pinLines",
+    afterDraw(chart) {
+      const group = chart._pinGroup;
+      if (!group || !group.pins.length) return;
+
+      const xScale = chart.scales.x;
+      const yScale = chart.scales.y;
+      if (!xScale || !yScale) return;
+
+      const ctx = chart.ctx;
+      ctx.save();
+
+      for (const pin of group.pins) {
+        const x = xScale.getPixelForValue(pin.index);
+        if (x < xScale.left || x > xScale.right) continue;
+
+        ctx.strokeStyle = pin.color;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(x, yScale.top);
+        ctx.lineTo(x, yScale.bottom);
+        ctx.stroke();
+
+        // Date label at top
+        ctx.fillStyle = pin.color;
+        ctx.font = "bold 9px Inter, system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(pin.date, x, yScale.top - 4);
+      }
+      ctx.restore();
+    },
+  };
+  Chart.register(pinLinesPlugin);
+
+  const attachPinGroup = (chartKey, groupName) => {
+    const chart = charts[chartKey];
+    const group = pinGroups[groupName];
+    if (!chart || !group) return;
+    chart._pinGroup = group;
+  };
+
+  const handlePinClick = (groupName, e, chart) => {
+    const group = pinGroups[groupName];
+    if (!group) return;
+
+    const xScale = chart.scales.x;
+    if (!xScale) return;
+
+    const rect = chart.canvas.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+
+    // Find nearest data index
+    const idx = Math.round(xScale.getValueForPixel(clickX));
+    if (idx < 0 || idx >= chart.data.labels.length) return;
+
+    // If this index is already pinned, remove it
+    const existing = group.pins.findIndex((p) => p.index === idx);
+    if (existing !== -1) {
+      group.pins.splice(existing, 1);
+    } else {
+      if (group.pins.length >= PIN_MAX) group.pins.shift();
+      const fullLabels = chart.data.datasets[0]?.data ? chart._pinFullDates || chart.data.labels : chart.data.labels;
+      const date = fullLabels[idx] || `#${idx}`;
+      const colorIdx = group.pins.length % PIN_COLORS.length;
+      group.pins.push({ index: idx, date: String(date), color: PIN_COLORS[colorIdx] });
+    }
+
+    // Redraw all charts in the group
+    for (const key of group.chartKeys) {
+      if (charts[key]) charts[key].update("none");
+    }
+  };
+
+  const setupPinListeners = (chartKey, groupName) => {
+    const chart = charts[chartKey];
+    if (!chart) return;
+    chart.canvas.addEventListener("dblclick", (e) => handlePinClick(groupName, e, chart));
+  };
+
+  const clearPins = (groupName) => {
+    const group = pinGroups[groupName];
+    if (!group) return;
+    group.pins.length = 0;
+    for (const key of group.chartKeys) {
+      if (charts[key]) charts[key].update("none");
+    }
+  };
+
   /* ─── Lifecycle ─── */
   const destroyChart = (key) => {
     if (charts[key]) {
@@ -210,6 +310,7 @@
       options: opts,
     });
     $.priceChartSubtitle.textContent = "OHLC Candlestick";
+    charts.price._pinFullDates = labels;
   };
 
   const renderPriceLine = (series, labels) => {
@@ -237,6 +338,7 @@
       options: opts,
     });
     $.priceChartSubtitle.textContent = "Cierre ajustado";
+    charts.price._pinFullDates = labels;
   };
 
   /* ─── Rolling Volatility ─── */
@@ -280,6 +382,7 @@
       },
       options: opts,
     });
+    charts.vol._pinFullDates = labels;
   };
 
   /* ─── Bollinger Bands ─── */
@@ -325,6 +428,7 @@
       },
       options: opts,
     });
+    charts[chartKey]._pinFullDates = labels;
   };
 
   const renderBollingerChart = (bbSeries, computed) => _renderBollinger("bb", "chart-bb", $.bbStats, bbSeries, computed);
@@ -374,6 +478,7 @@
       },
       options: opts,
     });
+    charts.rsi._pinFullDates = labels;
   };
 
   /* ─── MACD ─── */
@@ -418,6 +523,7 @@
       },
       options: opts,
     });
+    charts.macd._pinFullDates = labels;
   };
 
   /* ─── Volume ─── */
@@ -472,6 +578,7 @@
       },
       options: opts,
     });
+    charts.volume._pinFullDates = labels;
   };
 
   /* ─── GARCH Conditional Volatility ─── */
@@ -716,6 +823,20 @@
     });
   };
 
+  /* ─── Pin group initialization ─── */
+  const initPinGroup = (groupName) => {
+    const group = pinGroups[groupName];
+    if (!group) return;
+    for (const key of group.chartKeys) {
+      attachPinGroup(key, groupName);
+      setupPinListeners(key, groupName);
+      // Store full date labels for pin display
+      if (charts[key] && charts[key]._pinFullDates === undefined) {
+        charts[key]._pinFullDates = charts[key].data.labels;
+      }
+    }
+  };
+
   /* ─── Expose ─── */
   F.destroyChart = destroyChart;
   F.destroyAllCharts = destroyAllCharts;
@@ -731,4 +852,7 @@
   F.renderHmmRegimesChart = renderHmmRegimesChart;
   F.renderHmmDistributionsChart = renderHmmDistributionsChart;
   F.REGIME_COLORS = REGIME_COLORS;
+  F.initPinGroup = initPinGroup;
+  F.clearPins = clearPins;
+  F.pinGroups = pinGroups;
 })();

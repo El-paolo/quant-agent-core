@@ -76,6 +76,19 @@
       ctx.mc_prob_beat_bh = F.fmtPct(md.prob_beat_benchmark);
     }
 
+    if (state.fundamentalsResult) {
+      const f = state.fundamentalsResult;
+      if (f.company_name) ctx.fund_company_name = f.company_name;
+      if (f.sector) ctx.fund_sector = f.sector;
+      if (f.eps != null) ctx.fund_eps = `$${Number(f.eps).toFixed(2)}`;
+      if (f.forward_pe != null) ctx.fund_forward_pe = F.fmt(f.forward_pe, 1);
+      if (f.profit_margin != null) ctx.fund_profit_margin = F.fmtPct(f.profit_margin);
+      if (f.debt_to_equity != null) ctx.fund_debt_to_equity = F.fmt(f.debt_to_equity, 2);
+      if (f.roe != null) ctx.fund_roe = F.fmtPct(f.roe);
+      if (f.revenue_growth != null) ctx.fund_revenue_growth = F.fmtSign(f.revenue_growth);
+      if (f.market_cap != null) ctx.fund_market_cap = f.market_cap >= 1e9 ? `$${(f.market_cap / 1e9).toFixed(1)}B` : `$${(f.market_cap / 1e6).toFixed(0)}M`;
+    }
+
     return Object.keys(ctx).length > 0 ? ctx : null;
   };
 

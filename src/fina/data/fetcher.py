@@ -314,3 +314,69 @@ def fetch_ohlc(
     ohlc = df[["Open", "High", "Low", "Close"]].copy()
     ohlc.columns = ["open", "high", "low", "close"]
     return ohlc.dropna()
+
+
+# ---------------------------------------------------------------------------
+# Fundamentals cache (separate from price cache)
+# ---------------------------------------------------------------------------
+_fundamentals_cache: TTLCache = TTLCache(maxsize=64, ttl=600)
+_fundamentals_cache_lock = threading.Lock()
+
+# Fields to extract from yfinance .info dict
+_FUNDAMENTAL_FIELDS = {
+    "trailingEps": "eps",
+    "forwardEps": "forward_eps",
+    "earningsQuarterlyGrowth": "eps_growth",
+    "profitMargins": "profit_margin",
+    "grossMargins": "gross_margin",
+    "operatingMargins": "operating_margin",
+    "debtToEquity": "debt_to_equity",
+    "currentRatio": "current_ratio",
+    "returnOnEquity": "roe",
+    "returnOnAssets": "roa",
+    "revenueGrowth": "revenue_growth",
+    "marketCap": "market_cap",
+    "trailingPE": "pe_ratio",
+    "forwardPE": "forward_pe",
+    "priceToBook": "price_to_book",
+    "dividendYield": "dividend_yield",
+    "sector": "sector",
+    "industry": "industry",
+    "longName": "company_name",
+}
+
+
+def fetch_fundamentals(ticker: str) -> dict:
+    """
+    Fetch fundamental company data for a given ticker via yfinance.
+
+    Returns a dict with normalized field names. Values may be None
+    if the field is not available for the given ticker (e.g. ETFs).
+
+    Raises:
+        FetcherError: On invalid ticker or network failures.
+    """
+    clean_ticker = _sanitize_ticker(ticker)
+
+    cache_key = hashkey(clean_ticker, "fundamentals")
+    with _fundamentals_cache_lock:
+        if cache_key in _fundamentals_cache:
+            return _fundamentals_cache[cache_key]  # type: ignore[return-value]
+
+    try:
+        ticker_obj = yf.Ticker(clean_ticker)
+        info = ticker_obj.info or {}
+    except Exception as exc:
+        raise FetcherError(
+            f"Failed to fetch fundamentals for '{clean_ticker}': {exc}"
+        ) from exc
+
+    result: dict = {}
+    for yf_key, our_key in _FUNDAMENTAL_FIELDS.items():
+        val = info.get(yf_key)
+        result[our_key] = val if val is not None and val != "N/A" else None
+
+    with _fundamentals_cache_lock:
+        _fundamentals_cache[cache_key] = result
+
+    return result

@@ -43,6 +43,64 @@
     } else {
       hide($.warnings);
     }
+
+    // Fetch fundamentals
+    fetchFundamentals(data.ticker);
+  };
+
+  const fetchFundamentals = (ticker) => {
+    hide($.fundamentalsSection);
+
+    fetch(`/fundamentals/${encodeURIComponent(ticker)}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (!data || !data.fundamentals) return;
+        state.fundamentalsResult = data.fundamentals;
+        renderFundamentals(data.fundamentals);
+      })
+      .catch(() => { /* silently skip if fundamentals unavailable */ });
+  };
+
+  const renderFundamentals = (f) => {
+    const fmtMoney = (v) => {
+      if (v === null || v === undefined) return "N/A";
+      if (v >= 1e12) return `$${(v / 1e12).toFixed(1)}T`;
+      if (v >= 1e9)  return `$${(v / 1e9).toFixed(1)}B`;
+      if (v >= 1e6)  return `$${(v / 1e6).toFixed(0)}M`;
+      return `$${v.toLocaleString()}`;
+    };
+
+    const items = [
+      { label: "Empresa",       value: f.company_name,                    format: (v) => v || "N/A" },
+      { label: "Sector",        value: f.sector,                          format: (v) => v || "N/A" },
+      { label: "Market Cap",    value: f.market_cap,                      format: fmtMoney },
+      { label: "EPS (TTM)",     value: f.eps,                             format: (v) => v != null ? `$${Number(v).toFixed(2)}` : "N/A" },
+      { label: "EPS Forward",   value: f.forward_eps,                     format: (v) => v != null ? `$${Number(v).toFixed(2)}` : "N/A" },
+      { label: "EPS Growth",    value: f.eps_growth,                      format: (v) => v != null ? fmtSign(v) : "N/A" },
+      { label: "P/E (TTM)",     value: f.pe_ratio,                        format: (v) => v != null ? fmt(v, 1) : "N/A" },
+      { label: "P/E Forward",   value: f.forward_pe,                      format: (v) => v != null ? fmt(v, 1) : "N/A" },
+      { label: "P/B",           value: f.price_to_book,                   format: (v) => v != null ? fmt(v, 2) : "N/A" },
+      { label: "Margen neto",   value: f.profit_margin,                   format: (v) => v != null ? fmtPct(v) : "N/A" },
+      { label: "Margen bruto",  value: f.gross_margin,                    format: (v) => v != null ? fmtPct(v) : "N/A" },
+      { label: "Margen oper.",  value: f.operating_margin,                format: (v) => v != null ? fmtPct(v) : "N/A" },
+      { label: "D/E",           value: f.debt_to_equity,                  format: (v) => v != null ? fmt(v, 2) : "N/A" },
+      { label: "Current Ratio", value: f.current_ratio,                   format: (v) => v != null ? fmt(v, 2) : "N/A" },
+      { label: "ROE",           value: f.roe,                             format: (v) => v != null ? fmtPct(v) : "N/A" },
+      { label: "ROA",           value: f.roa,                             format: (v) => v != null ? fmtPct(v) : "N/A" },
+      { label: "Rev. Growth",   value: f.revenue_growth,                  format: (v) => v != null ? fmtSign(v) : "N/A" },
+      { label: "Div. Yield",    value: f.dividend_yield,                  format: (v) => v != null ? fmtPct(v) : "N/A" },
+    ];
+
+    // Only show items that have data
+    const available = items.filter((i) => i.value !== null && i.value !== undefined);
+    if (available.length === 0) return;
+
+    $.fundamentalsGrid.innerHTML = available.map((i) => {
+      const val = i.format(i.value);
+      return `<div class="fund-card"><div class="fund-label">${escHtml(i.label)}</div><div class="fund-value">${escHtml(val)}</div></div>`;
+    }).join("");
+
+    show($.fundamentalsSection);
   };
 
   const buildMetricCards = (computed) => {
@@ -196,6 +254,7 @@
     const series   = (state.timeseriesResult && state.timeseriesResult.series) || {};
 
     show($.metricsPanelContent);
+    F.clearPins("metrics");
 
     F.renderPriceChart(series.ohlc || [], series.bollinger || [], series.prices || []);
     F.renderVolChart(series.rolling_volatility || [], computed);
@@ -203,6 +262,8 @@
     renderRatios(computed);
     F.renderBollingerChart(series.bollinger || [], computed);
     F.renderVolumeChart(series.volume || []);
+
+    F.initPinGroup("metrics");
   };
 
   /* ─── Returns stats table ─── */
@@ -319,9 +380,11 @@
     const series = (state.techSeriesResult && state.techSeriesResult.series) || {};
     const computed = (state.analysisResult && state.analysisResult.data.computed) || {};
     show($.techPanelContent);
+    F.clearPins("technicals");
     F.renderRsiChart(series.rsi || [], computed);
     F.renderMacdChart(series.macd || []);
     F.renderTechBollingerChart(series.bollinger || [], computed);
+    F.initPinGroup("technicals");
   };
 
   /* ─── Models Panel ─── */
@@ -726,6 +789,10 @@
       if (chartInstance.resetZoom) chartInstance.resetZoom();
     });
   });
+
+  /* ─── Pin clear buttons ─── */
+  $.pinClearTech.addEventListener("click", () => F.clearPins("technicals"));
+  $.pinClearMetrics.addEventListener("click", () => F.clearPins("metrics"));
 
   /* ─── Init ─── */
   $.ticker.focus();

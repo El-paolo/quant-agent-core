@@ -2086,7 +2086,72 @@ legend { display: block; }
   }
 }
 
-/* --- 22. Monte Carlo --- */
+/* --- 22. Fundamentals --- */
+.fundamentals-section {
+  margin-top: 1.5rem;
+}
+
+.fundamentals-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin: 0 0 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.fundamentals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0.5rem;
+}
+
+.fund-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.55rem 0.7rem;
+}
+
+.fund-label {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.2rem;
+}
+
+.fund-value {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* --- 23. Pin System --- */
+.pin-clear-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.pin-clear-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+
+.pin-hint {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin: -0.5rem 0 0.75rem;
+  padding: 0;
+}
+
+/* --- 23. Monte Carlo --- */
 .bt-mc-section {
   border-top: 1px solid var(--border);
   padding-top: 1.5rem;

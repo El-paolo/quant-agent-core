@@ -81,6 +81,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from fina.api.routes.agent import router as agent_router
     from fina.api.routes.models import router as models_router
     from fina.api.routes.backtest import router as backtest_router
+    from fina.api.routes.fundamentals import router as fundamentals_router
 
     app.include_router(health_router)
     app.include_router(analysis_router, prefix="/analysis")
@@ -88,6 +89,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(agent_router, prefix="/agent")
     app.include_router(models_router, prefix="/models")
     app.include_router(backtest_router, prefix="/backtest")
+    app.include_router(fundamentals_router, prefix="/fundamentals")
 
     # --- Frontend static files ---
     frontend_dir = Path(__file__).resolve().parent.parent.parent.parent / "frontend"
