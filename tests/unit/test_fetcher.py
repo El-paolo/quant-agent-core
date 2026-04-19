@@ -12,7 +12,13 @@ import pandas as pd
 import pytest
 
 from fina.core.exceptions import FetcherError
-from fina.data.fetcher import _parse_date, _sanitize_ticker, fetch_close_prices
+from fina.data.fetcher import (
+    _parse_date,
+    _sanitize_ticker,
+    _sanitize_tickers,
+    fetch_close_prices,
+    fetch_universe,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -209,3 +215,114 @@ class TestFetchClosePricesErrors:
         with patch("fina.data.fetcher.yf.Ticker", return_value=mock_ticker):
             with pytest.raises(FetcherError, match="null"):
                 fetch_close_prices("AAPL", period="1y")
+
+
+# ---------------------------------------------------------------------------
+# _sanitize_tickers (list validation)
+# ---------------------------------------------------------------------------
+
+
+class TestSanitizeTickers:
+    def test_valid_list(self) -> None:
+        result = _sanitize_tickers(["AAPL", "MSFT", "GOOGL"])
+        assert result == ["AAPL", "MSFT", "GOOGL"]
+
+    def test_deduplicates(self) -> None:
+        result = _sanitize_tickers(["AAPL", "aapl", "MSFT"])
+        assert result == ["AAPL", "MSFT"]
+
+    def test_normalizes_case(self) -> None:
+        result = _sanitize_tickers(["aapl", "msft"])
+        assert result == ["AAPL", "MSFT"]
+
+    def test_empty_list_raises(self) -> None:
+        with pytest.raises(FetcherError, match="empty"):
+            _sanitize_tickers([])
+
+    def test_non_list_raises(self) -> None:
+        with pytest.raises(FetcherError, match="list"):
+            _sanitize_tickers("AAPL")  # type: ignore[arg-type]
+
+    def test_too_many_tickers_raises(self) -> None:
+        with pytest.raises(FetcherError, match="too large"):
+            _sanitize_tickers([f"T{i}" for i in range(51)])
+
+    def test_invalid_ticker_in_list_raises(self) -> None:
+        with pytest.raises(FetcherError):
+            _sanitize_tickers(["AAPL", "BAD TICKER!"])
+
+
+# ---------------------------------------------------------------------------
+# fetch_universe (multi-ticker fetching)
+# ---------------------------------------------------------------------------
+
+
+class TestFetchUniverse:
+    def test_returns_dataframe(self, sample_prices: pd.Series) -> None:
+        mock_ticker = MagicMock()
+        mock_ticker.history.return_value = _make_mock_df(sample_prices)
+        with patch("fina.data.fetcher.yf.Ticker", return_value=mock_ticker):
+            result = fetch_universe(["AAPL", "MSFT"])
+        assert isinstance(result, pd.DataFrame)
+
+    def test_columns_match_tickers(self, sample_prices: pd.Series) -> None:
+        mock_ticker = MagicMock()
+        mock_ticker.history.return_value = _make_mock_df(sample_prices)
+        with patch("fina.data.fetcher.yf.Ticker", return_value=mock_ticker):
+            result = fetch_universe(["AAPL", "MSFT", "GOOGL"])
+        assert list(result.columns) == ["AAPL", "MSFT", "GOOGL"]
+
+    def test_preserves_input_order(self, sample_prices: pd.Series) -> None:
+        mock_ticker = MagicMock()
+        mock_ticker.history.return_value = _make_mock_df(sample_prices)
+        with patch("fina.data.fetcher.yf.Ticker", return_value=mock_ticker):
+            result = fetch_universe(["GOOGL", "AAPL", "MSFT"])
+        assert list(result.columns) == ["GOOGL", "AAPL", "MSFT"]
+
+    def test_partial_failure_continues(self, sample_prices: pd.Series) -> None:
+        """If one ticker fails, the rest should still be returned."""
+        call_count = 0
+
+        def side_effect(ticker, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if ticker == "BAD":
+                raise FetcherError("not found")
+            return sample_prices.rename(ticker)
+
+        with patch("fina.data.fetcher.fetch_close_prices", side_effect=side_effect):
+            result = fetch_universe(["AAPL", "BAD", "MSFT"])
+        assert "AAPL" in result.columns
+        assert "MSFT" in result.columns
+        assert "BAD" not in result.columns
+        assert "BAD" in result.attrs["failed_tickers"]
+
+    def test_all_fail_raises(self) -> None:
+        with patch(
+            "fina.data.fetcher.fetch_close_prices",
+            side_effect=FetcherError("fail"),
+        ):
+            with pytest.raises(FetcherError, match="No tickers"):
+                fetch_universe(["AAPL", "MSFT"])
+
+    def test_warnings_in_attrs(self, sample_prices: pd.Series) -> None:
+        def side_effect(ticker, **kwargs):
+            if ticker == "BAD":
+                raise FetcherError("not found")
+            return sample_prices.rename(ticker)
+
+        with patch("fina.data.fetcher.fetch_close_prices", side_effect=side_effect):
+            result = fetch_universe(["AAPL", "BAD"])
+        assert len(result.attrs["warnings"]) == 1
+
+    def test_single_ticker(self, sample_prices: pd.Series) -> None:
+        mock_ticker = MagicMock()
+        mock_ticker.history.return_value = _make_mock_df(sample_prices)
+        with patch("fina.data.fetcher.yf.Ticker", return_value=mock_ticker):
+            result = fetch_universe(["AAPL"])
+        assert isinstance(result, pd.DataFrame)
+        assert list(result.columns) == ["AAPL"]
+
+    def test_empty_list_raises(self) -> None:
+        with pytest.raises(FetcherError, match="empty"):
+            fetch_universe([])

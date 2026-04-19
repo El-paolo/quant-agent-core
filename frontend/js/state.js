@@ -62,6 +62,7 @@
   /* ─── Application State ─── */
   const state = {
     ticker: "",
+    tickers: [],          // multi-ticker array; ticker = tickers[0]
     period: "1y",
     metrics: ALL_METRICS.slice(),
     activePanel: "overview",
@@ -73,20 +74,29 @@
     modelsResult: null,
     modelsTimeseriesResult: null,
     comparisonResult: null,
-    loading: { analysis: false, agent: false, timeseries: false, models: false },
+    loading: { analysis: false, agent: false, timeseries: false, models: false, portfolio: false },
     errors: [],
     /* Fundamentals */
     fundamentalsResult: null,
     /* Backtest */
     backtestResult: null,
     monteCarloResult: null,
+    /* Portfolio */
+    portfolioResult: null,
+    /* Predictions */
+    predictions: [],
+    predictionsVisibleMetrics: ["target_date", "predicted_price", "real_price", "confidence", "mae", "accuracy", "status"],
+    /* Progressive disclosure toggles */
+    btAdvancedOpen: false,
+    btMcAdvancedOpen: false,
+    predMetricsOpen: false,
     /* Assistant */
     chatMessages: [],
     chatOpen: false,
   };
 
   /* Chart instances — destroyed before re-creating */
-  const charts = { vol: null, bb: null, volume: null, rsi: null, macd: null, techBb: null, price: null, garchVol: null, garchForecast: null, hmmRegimes: null, hmmDist: null, btEquity: null, btPositions: null, btMcFan: null };
+  const charts = { vol: null, bb: null, volume: null, rsi: null, macd: null, techBb: null, price: null, garchVol: null, garchForecast: null, hmmRegimes: null, hmmDist: null, btEquity: null, btPositions: null, btMcFan: null, pfEquity: null };
   let priceChartMode = "candle";
 
   /* ─── DOM refs ─── */
@@ -226,6 +236,59 @@
     btMcDistGrid:    document.getElementById("bt-mc-dist-grid"),
     btMcWarnings:    document.getElementById("bt-mc-warnings"),
     btMcWarningsInner: document.getElementById("bt-mc-warnings-inner"),
+    /* Multi-ticker input */
+    tickersWrap:    document.getElementById("tickers-wrap"),
+    tickerTags:     document.getElementById("ticker-tags"),
+    portfolioBadge: document.getElementById("portfolio-badge"),
+    /* Portfolio panel */
+    portfolioPanel:      document.getElementById("portfolio-panel"),
+    pfPanelTicker:       document.getElementById("portfolio-panel-ticker"),
+    pfPanelMeta:         document.getElementById("portfolio-panel-meta"),
+    pfTrainStart:        document.getElementById("pf-train-start"),
+    pfTrainEnd:          document.getElementById("pf-train-end"),
+    pfTestStart:         document.getElementById("pf-test-start"),
+    pfTestEnd:           document.getElementById("pf-test-end"),
+    pfUseArima:          document.getElementById("pf-use-arima"),
+    pfUseHmm:            document.getElementById("pf-use-hmm"),
+    pfUseGarch:          document.getElementById("pf-use-garch"),
+    pfWeightScheme:      document.getElementById("pf-weight-scheme"),
+    pfCapital:           document.getElementById("pf-capital"),
+    pfRun:               document.getElementById("pf-run"),
+    pfLoading:           document.getElementById("pf-loading"),
+    pfError:             document.getElementById("pf-error"),
+    pfErrorMsg:          document.getElementById("pf-error-msg"),
+    pfEmptyHint:         document.getElementById("pf-empty-hint"),
+    pfResults:           document.getElementById("pf-results"),
+    pfPeriodsRow:        document.getElementById("pf-periods-row"),
+    pfWeightsRow:        document.getElementById("pf-weights-row"),
+    pfMetricsGrid:       document.getElementById("pf-metrics-grid"),
+    pfAdvancedToggle:    document.getElementById("pf-advanced-toggle"),
+    pfPerAsset:          document.getElementById("pf-per-asset"),
+    pfWarnings:          document.getElementById("pf-warnings"),
+    pfWarningsInner:     document.getElementById("pf-warnings-inner"),
+    /* Backtest progressive disclosure */
+    btAdvancedToggle:    document.getElementById("bt-advanced-toggle"),
+    btAdvancedMetrics:   document.getElementById("bt-advanced-metrics"),
+    btMcAdvancedToggle:  document.getElementById("bt-mc-advanced-toggle"),
+    btMcAdvancedMetrics: document.getElementById("bt-mc-advanced-metrics"),
+    /* Predictions panel */
+    predictionsPanel:        document.getElementById("predictions-panel"),
+    predictionsContent:      document.getElementById("predictions-content"),
+    predictionsLoading:      document.getElementById("predictions-loading"),
+    predictionsError:        document.getElementById("predictions-error"),
+    predictionsErrorMsg:     document.getElementById("predictions-error-msg"),
+    predForm:                document.getElementById("predictions-form"),
+    predTicker:              document.getElementById("pred-ticker"),
+    predTargetDate:          document.getElementById("pred-target-date"),
+    predPrice:               document.getElementById("pred-price"),
+    predConfidence:          document.getElementById("pred-confidence"),
+    metricsSelectToggle:     document.getElementById("metrics-selector-toggle"),
+    metricsSelectBody:       document.getElementById("metrics-selector-body"),
+    predTableCount:          document.getElementById("predictions-table-count"),
+    predTableHeader:         document.getElementById("predictions-table-header"),
+    predTableBody:           document.getElementById("predictions-table-body"),
+    predEmpty:               document.getElementById("predictions-empty"),
+    predExportBtn:           document.getElementById("predictions-export-btn"),
     /* Rail */
     railLinks: document.querySelectorAll(".rail-link[data-panel]"),
   };

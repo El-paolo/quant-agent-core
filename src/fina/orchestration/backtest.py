@@ -7,6 +7,7 @@ return structured error responses.
 
 from fina.backtest.engine import run_backtest
 from fina.backtest.montecarlo import run_montecarlo
+from fina.backtest.portfolio_engine import run_portfolio_backtest
 from fina.core.exceptions import BacktestError, FetcherError
 
 
@@ -54,6 +55,32 @@ def run_montecarlo_orchestrated(
     """
     return run_montecarlo(
         ticker=ticker,
+        train_start=train_start,
+        train_end=train_end,
+        test_start=test_start,
+        test_end=test_end,
+        **kwargs,
+    )
+
+
+def run_portfolio_backtest_orchestrated(
+    tickers: list[str],
+    train_start: str,
+    train_end: str,
+    test_start: str,
+    test_end: str,
+    **kwargs,
+) -> dict:
+    """
+    Run a portfolio backtest with graceful error handling.
+
+    Raises:
+        FetcherError: Re-raised (HTTP 422 in route layer).
+        BacktestError: Re-raised (HTTP 422 in route layer).
+        Exception: Unexpected errors re-raised for 500 handling.
+    """
+    return run_portfolio_backtest(
+        tickers=tickers,
         train_start=train_start,
         train_end=train_end,
         test_start=test_start,

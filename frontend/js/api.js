@@ -11,13 +11,81 @@
   const show = F.show;
   const hide = F.hide;
 
-  /* ─── Ticker validation ─── */
+  /* ─── Multi-ticker tag input ─── */
+  const addTicker = (raw) => {
+    const t = raw.trim().toUpperCase();
+    if (!t || !F.TICKER_RE.test(t)) return false;
+    if (state.tickers.includes(t)) return false;
+    state.tickers.push(t);
+    state.ticker = state.tickers[0];
+    renderTickerTags();
+    return true;
+  };
+
+  const removeTicker = (t) => {
+    state.tickers = state.tickers.filter((x) => x !== t);
+    state.ticker = state.tickers[0] || "";
+    renderTickerTags();
+  };
+
+  const renderTickerTags = () => {
+    $.tickerTags.innerHTML = state.tickers.map((t) =>
+      `<span class="cb-ticker-tag">${t}<button class="cb-tag-x" data-ticker="${t}" type="button">&times;</button></span>`
+    ).join("");
+
+    // Badge
+    if (state.tickers.length > 1) show($.portfolioBadge);
+    else hide($.portfolioBadge);
+
+    // Placeholder
+    $.ticker.placeholder = state.tickers.length > 0 ? "Otro ticker..." : "AAPL";
+
+    // Update portfolio run button + pipeline steps
+    if (F.updatePfRunBtn) F.updatePfRunBtn();
+    updatePipelineSteps();
+  };
+
+  // Tag remove handler (delegated)
+  $.tickerTags.addEventListener("click", (e) => {
+    const btn = e.target.closest(".cb-tag-x");
+    if (btn) {
+      removeTicker(btn.dataset.ticker);
+    }
+  });
+
+  // Comma to add ticker, Enter to add + run, Backspace to remove last
+  $.ticker.addEventListener("keydown", (e) => {
+    if (e.key === ",") {
+      e.preventDefault();
+      const raw = $.ticker.value.trim();
+      if (raw) {
+        addTicker(raw);
+        $.ticker.value = "";
+      }
+    }
+    // Enter is handled by panels.js (calls runAnalysis which flushes)
+    if (e.key === "Backspace" && $.ticker.value === "" && state.tickers.length > 0) {
+      removeTicker(state.tickers[state.tickers.length - 1]);
+    }
+  });
+
+  /* ─── Ticker validation (backward compat) ─── */
   const validateTicker = () => {
     const raw = $.ticker.value.trim().toUpperCase();
     $.ticker.value = raw;
-    const valid = raw.length > 0 && F.TICKER_RE.test(raw);
-    $.ticker.classList.toggle("invalid", raw.length > 0 && !valid);
-    return valid ? raw : null;
+    // Only visual feedback — don't add ticker on every keystroke
+    $.ticker.classList.toggle("invalid", raw.length > 0 && !F.TICKER_RE.test(raw));
+    if (state.tickers.length === 0 && !raw) return null;
+    return state.tickers[0] || raw || null;
+  };
+
+  /* Flush pending input into tags (called before analysis) */
+  const flushTickerInput = () => {
+    const raw = $.ticker.value.trim().toUpperCase();
+    if (raw && F.TICKER_RE.test(raw)) {
+      addTicker(raw);
+      $.ticker.value = "";
+    }
   };
 
   /* ─── Health check ─── */
@@ -33,6 +101,34 @@
         $.healthLbl.textContent = "offline";
       });
   };
+
+  /* ─── Pipeline step state management ─── */
+  const STEP_PREREQS = {
+    1: () => true,                          // Universo: always available
+    2: () => !!state.analysisResult,        // Exploración: needs analysis
+    3: () => !!state.analysisResult,        // Modelos: needs analysis
+    4: () => !!state.analysisResult,        // Backtest: needs analysis
+    5: () => state.tickers.length >= 2,     // Portfolio: needs 2+ tickers
+    6: () => !!state.analysisResult,        // Predicciones: needs prior analysis
+  };
+
+  const updatePipelineSteps = () => {
+    document.querySelectorAll(".rail-step[data-step]").forEach((btn) => {
+      const step = parseInt(btn.dataset.step, 10);
+      const unlocked = STEP_PREREQS[step] ? STEP_PREREQS[step]() : true;
+      btn.classList.toggle("rail-step--locked", !unlocked);
+      btn.disabled = !unlocked;
+    });
+  };
+
+  /* ─── Next step CTA handler (delegated) ─── */
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".pipeline-next-btn[data-goto]");
+    if (btn) {
+      const target = btn.dataset.goto;
+      switchToPanel(target);
+    }
+  });
 
   /* ─── Read selected metrics ─── */
   const readSelectedMetrics = () => {
@@ -53,6 +149,10 @@
   };
 
   const switchToPanel = (panelName) => {
+    /* Check if step is locked */
+    const stepBtn = document.querySelector(`.rail-step[data-panel="${panelName}"]`);
+    if (stepBtn && stepBtn.classList.contains("rail-step--locked")) return;
+
     const prevPanel = state.activePanel;
 
     /* Destroy charts when leaving panels */
@@ -68,6 +168,9 @@
     if (prevPanel === "backtest" && panelName !== "backtest") {
       ["btEquity", "btPositions", "btMcFan"].forEach(F.destroyChart);
     }
+    if (prevPanel === "portfolio" && panelName !== "portfolio") {
+      ["pfEquity"].forEach(F.destroyChart);
+    }
 
     /* Hide all panels */
     hide($.emptyState);
@@ -79,6 +182,8 @@
     hide($.modelsPanel);
     hide($.newsPanel);
     hide($.backtestPanel);
+    hide($.portfolioPanel);
+    hide($.predictionsPanel);
     hide($.methodologyPanel);
 
     state.activePanel = panelName;
@@ -145,6 +250,12 @@
     } else if (panelName === "backtest") {
       show($.backtestPanel);
       F.loadBacktestPanel();
+    } else if (panelName === "portfolio") {
+      show($.portfolioPanel);
+      F.loadPortfolioPanel();
+    } else if (panelName === "predictions") {
+      show($.predictionsPanel);
+      F.loadPredictionsPanel();
     } else if (panelName === "methodology") {
       show($.methodologyPanel);
     }
@@ -155,7 +266,8 @@
 
   /* ─── Run analysis ─── */
   const runAnalysis = () => {
-    const ticker = validateTicker();
+    flushTickerInput();
+    const ticker = state.tickers[0] || null;
     if (!ticker) { $.ticker.focus(); return; }
 
     /* Abort any in-flight request */
@@ -189,6 +301,7 @@
     hide($.modelsPanel);
     hide($.newsPanel);
     hide($.backtestPanel);
+    hide($.portfolioPanel);
     hide($.methodologyPanel);
     show($.loadingState);
 
@@ -245,6 +358,7 @@
         F.renderOverview();
         hide($.loadingState);
         show($.resultsState);
+        updatePipelineSteps();
       }
 
       agentPromise.then(F.renderAgentResults);
@@ -252,8 +366,11 @@
   };
 
   /* ─── Expose ─── */
+  F.addTicker = addTicker;
+  F.removeTicker = removeTicker;
   F.validateTicker = validateTicker;
   F.checkHealth = checkHealth;
   F.switchToPanel = switchToPanel;
   F.runAnalysis = runAnalysis;
+  F.updatePipelineSteps = updatePipelineSteps;
 })();

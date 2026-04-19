@@ -181,7 +181,51 @@ class TestSchemas:
     def test_analysis_request_normalizes_ticker(self) -> None:
         from fina.api.schemas import AnalysisRequest
         req = AnalysisRequest(ticker="  aapl  ", period="1y")
-        assert req.ticker == "AAPL"
+        assert req.first_ticker == "AAPL"
+        assert req.tickers == ["AAPL"]
+
+    def test_analysis_request_accepts_list(self) -> None:
+        from fina.api.schemas import AnalysisRequest
+        req = AnalysisRequest(ticker=["aapl", "msft"], period="1y")
+        assert req.tickers == ["AAPL", "MSFT"]
+        assert req.first_ticker == "AAPL"
+
+    def test_analysis_request_deduplicates_tickers(self) -> None:
+        from fina.api.schemas import AnalysisRequest
+        req = AnalysisRequest(ticker=["AAPL", "aapl", "MSFT"], period="1y")
+        assert req.tickers == ["AAPL", "MSFT"]
+
+    def test_analysis_request_empty_list_rejected(self) -> None:
+        from fina.api.schemas import AnalysisRequest
+        import pytest
+        with pytest.raises(Exception):
+            AnalysisRequest(ticker=[], period="1y")
+
+    def test_backtest_request_accepts_string_ticker(self) -> None:
+        from fina.api.schemas import BacktestRequest
+        req = BacktestRequest(
+            ticker="AAPL",
+            train_start="2022-01-01", train_end="2023-06-30",
+            test_start="2023-07-01", test_end="2023-12-31",
+        )
+        assert req.first_ticker == "AAPL"
+        assert req.tickers == ["AAPL"]
+
+    def test_backtest_request_accepts_list_ticker(self) -> None:
+        from fina.api.schemas import BacktestRequest
+        req = BacktestRequest(
+            ticker=["AAPL", "MSFT"],
+            train_start="2022-01-01", train_end="2023-06-30",
+            test_start="2023-07-01", test_end="2023-12-31",
+        )
+        assert req.tickers == ["AAPL", "MSFT"]
+
+    def test_models_request_accepts_string_and_list(self) -> None:
+        from fina.api.schemas import ModelsRequest
+        req_str = ModelsRequest(ticker="GOOGL")
+        req_list = ModelsRequest(ticker=["GOOGL", "AMZN"])
+        assert req_str.first_ticker == "GOOGL"
+        assert req_list.tickers == ["GOOGL", "AMZN"]
 
     def test_analysis_request_default_metrics(self) -> None:
         from fina.api.schemas import AnalysisRequest

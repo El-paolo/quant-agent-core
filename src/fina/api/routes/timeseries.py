@@ -138,7 +138,7 @@ async def analysis_timeseries(request: TimeseriesRequest) -> TimeseriesResponse:
     """
     try:
         result = await asyncio.to_thread(
-            _compute_timeseries, request.ticker, request.period, set(request.series),
+            _compute_timeseries, request.first_ticker, request.period, set(request.series),
         )
     except (FetcherError, ValidationError) as exc:
         raise HTTPException(status_code=422, detail=str(exc))
@@ -146,7 +146,7 @@ async def analysis_timeseries(request: TimeseriesRequest) -> TimeseriesResponse:
         raise HTTPException(status_code=500, detail="Internal timeseries error")
 
     return TimeseriesResponse(
-        ticker=request.ticker,
+        ticker=request.first_ticker,
         period=request.period,
         series=result["series"],
         warnings=result["warnings"],

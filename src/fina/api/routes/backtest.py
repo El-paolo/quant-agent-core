@@ -1,10 +1,12 @@
-"""POST /backtest/ and POST /backtest/montecarlo/ — backtesting endpoints."""
+"""POST /backtest/, /backtest/montecarlo/, /backtest/portfolio/ — backtesting endpoints."""
 
 import asyncio
 
 from fastapi import APIRouter, HTTPException
 
 from fina.api.schemas import (
+    BacktestPortfolioRequest,
+    BacktestPortfolioResponse,
     BacktestRequest,
     BacktestResponse,
     MonteCarloRequest,
@@ -14,6 +16,7 @@ from fina.core.exceptions import BacktestError, FetcherError, MetricsError
 from fina.orchestration.backtest import (
     run_backtest_orchestrated,
     run_montecarlo_orchestrated,
+    run_portfolio_backtest_orchestrated,
 )
 
 router = APIRouter(tags=["backtest"])
@@ -28,10 +31,16 @@ async def backtest_run(request: BacktestRequest) -> BacktestResponse:
     test period, simulates a strategy, and returns performance metrics
     compared against buy-and-hold.
     """
+    if len(request.tickers) > 1:
+        raise HTTPException(
+            status_code=422,
+            detail="Multi-ticker backtest available via POST /backtest/portfolio/.",
+        )
+
     try:
         result = await asyncio.to_thread(
             run_backtest_orchestrated,
-            ticker=request.ticker,
+            ticker=request.first_ticker,
             train_start=request.train_start,
             train_end=request.train_end,
             test_start=request.test_start,
@@ -59,10 +68,16 @@ async def montecarlo_run(request: MonteCarloRequest) -> MonteCarloResponse:
     return paths and runs the full strategy on each. Returns a percentile
     fan chart and risk metric distributions (VaR, CVaR, prob_profit).
     """
+    if len(request.tickers) > 1:
+        raise HTTPException(
+            status_code=422,
+            detail="Multi-ticker Monte Carlo not yet supported.",
+        )
+
     try:
         result = await asyncio.to_thread(
             run_montecarlo_orchestrated,
-            ticker=request.ticker,
+            ticker=request.first_ticker,
             train_start=request.train_start,
             train_end=request.train_end,
             test_start=request.test_start,
@@ -80,3 +95,40 @@ async def montecarlo_run(request: MonteCarloRequest) -> MonteCarloResponse:
         raise HTTPException(status_code=500, detail="Internal Monte Carlo error")
 
     return MonteCarloResponse(**result)
+
+
+@router.post("/portfolio/", response_model=BacktestPortfolioResponse)
+async def portfolio_backtest_run(
+    request: BacktestPortfolioRequest,
+) -> BacktestPortfolioResponse:
+    """
+    Run a portfolio backtest across multiple tickers.
+
+    Runs per-asset signal generation and strategy simulation, then
+    combines equity curves using the chosen weighting scheme.
+    Optionally applies cross-sectional signals (momentum or pairs).
+    """
+    try:
+        result = await asyncio.to_thread(
+            run_portfolio_backtest_orchestrated,
+            tickers=request.tickers,
+            train_start=request.train_start,
+            train_end=request.train_end,
+            test_start=request.test_start,
+            test_end=request.test_end,
+            models=request.models,
+            weight_scheme=request.weight_scheme,
+            custom_weights=request.custom_weights,
+            cross_signal=request.cross_signal,
+            cross_signal_params=request.cross_signal_params or {},
+            initial_capital=request.initial_capital,
+            arima_threshold=request.arima_threshold,
+            hmm_states=request.hmm_states,
+            commission_bps=request.commission_bps,
+        )
+    except (FetcherError, BacktestError, MetricsError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal portfolio backtest error")
+
+    return BacktestPortfolioResponse(**result)

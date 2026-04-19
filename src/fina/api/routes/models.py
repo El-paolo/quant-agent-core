@@ -24,7 +24,7 @@ async def models_summary(request: ModelsRequest) -> ModelsResponse:
     try:
         result = await asyncio.to_thread(
             run_models,
-            ticker=request.ticker,
+            ticker=request.first_ticker,
             period=request.period,
             garch_horizon=request.garch_horizon,
             hmm_states=request.hmm_states,
@@ -35,7 +35,7 @@ async def models_summary(request: ModelsRequest) -> ModelsResponse:
         raise HTTPException(status_code=500, detail="Internal models error")
 
     return ModelsResponse(
-        ticker=request.ticker,
+        ticker=request.first_ticker,
         period=request.period,
         garch=result.get("garch"),
         hmm=result.get("hmm"),
@@ -52,7 +52,7 @@ async def models_timeseries(request: ModelsRequest) -> ModelsTimeseriesResponse:
     try:
         result = await asyncio.to_thread(
             run_models_timeseries,
-            ticker=request.ticker,
+            ticker=request.first_ticker,
             period=request.period,
             garch_horizon=request.garch_horizon,
             hmm_states=request.hmm_states,
@@ -63,7 +63,7 @@ async def models_timeseries(request: ModelsRequest) -> ModelsTimeseriesResponse:
         raise HTTPException(status_code=500, detail="Internal models timeseries error")
 
     return ModelsTimeseriesResponse(
-        ticker=request.ticker,
+        ticker=request.first_ticker,
         period=request.period,
         garch_vol=result.get("garch_vol", []),
         garch_forecast=result.get("garch_forecast", []),
@@ -82,7 +82,7 @@ async def models_compare(request: ModelsRequest) -> ComparisonResponse:
     try:
         result = await asyncio.to_thread(
             run_comparison,
-            ticker=request.ticker,
+            ticker=request.first_ticker,
             period=request.period,
             horizon=request.garch_horizon,
         )
@@ -92,7 +92,7 @@ async def models_compare(request: ModelsRequest) -> ComparisonResponse:
         raise HTTPException(status_code=500, detail="Internal comparison error")
 
     return ComparisonResponse(
-        ticker=request.ticker,
+        ticker=request.first_ticker,
         period=request.period,
         models=result.get("models", {}),
         comparison=result.get("comparison", []),

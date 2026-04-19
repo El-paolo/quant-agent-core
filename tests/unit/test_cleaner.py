@@ -11,6 +11,7 @@ import pytest
 
 from fina.core.exceptions import ValidationError
 from fina.data.cleaner import (
+    clean_dataframe,
     clean_prices,
     detect_outliers,
     handle_nans,
@@ -235,3 +236,86 @@ class TestCleanPrices:
         assert not result.isnull().any()
         assert result.index.tz is None
         assert "outlier_count" in result.attrs
+
+
+# ---------------------------------------------------------------------------
+# clean_dataframe (multi-ticker)
+# ---------------------------------------------------------------------------
+
+
+class TestCleanDataframe:
+    def test_returns_dataframe(self, sample_prices_multi: pd.DataFrame) -> None:
+        result = clean_dataframe(sample_prices_multi)
+        assert isinstance(result, pd.DataFrame)
+
+    def test_preserves_columns(self, sample_prices_multi: pd.DataFrame) -> None:
+        result = clean_dataframe(sample_prices_multi)
+        assert list(result.columns) == ["AAPL", "MSFT", "GOOGL"]
+
+    def test_no_nans_in_output(self, sample_prices_multi: pd.DataFrame) -> None:
+        result = clean_dataframe(sample_prices_multi)
+        assert not result.isnull().any().any()
+
+    def test_handles_nan_per_column(self) -> None:
+        dates = pd.date_range("2023-01-01", periods=10, freq="B")
+        df = pd.DataFrame(
+            {
+                "A": [100, 101, float("nan"), 103, 104, 105, 106, 107, 108, 109],
+                "B": [200, 201, 202, 203, 204, 205, 206, 207, 208, 209],
+            },
+            index=dates,
+            dtype=float,
+        )
+        result = clean_dataframe(df)
+        assert not result.isnull().any().any()
+        assert len(result) == 10
+
+    def test_aligns_to_common_dates(self) -> None:
+        dates_a = pd.date_range("2023-01-02", periods=5, freq="B")
+        dates_b = pd.date_range("2023-01-03", periods=5, freq="B")
+        df = pd.DataFrame(
+            {"A": pd.Series([100, 101, 102, 103, 104], index=dates_a, dtype=float),
+             "B": pd.Series([200, 201, 202, 203, 204], index=dates_b, dtype=float)},
+        )
+        result = clean_dataframe(df)
+        # Inner join: only overlapping dates should remain
+        assert not result.isnull().any().any()
+        assert len(result) <= min(len(dates_a), len(dates_b))
+
+    def test_outlier_counts_in_attrs(self, sample_prices_multi: pd.DataFrame) -> None:
+        result = clean_dataframe(sample_prices_multi)
+        assert "outlier_counts" in result.attrs
+        assert isinstance(result.attrs["outlier_counts"], dict)
+
+    def test_empty_dataframe(self) -> None:
+        df = pd.DataFrame()
+        result = clean_dataframe(df)
+        assert result.empty
+
+    def test_non_dataframe_raises(self) -> None:
+        with pytest.raises(ValidationError, match="DataFrame"):
+            clean_dataframe([100, 200])  # type: ignore[arg-type]
+
+    def test_all_nan_column_excluded(self) -> None:
+        dates = pd.date_range("2023-01-01", periods=5, freq="B")
+        df = pd.DataFrame(
+            {
+                "A": [100, 101, 102, 103, 104],
+                "B": [float("nan")] * 5,
+            },
+            index=dates,
+            dtype=float,
+        )
+        result = clean_dataframe(df)
+        assert "A" in result.columns
+        assert "B" not in result.columns
+
+    def test_mixed_timezones(self) -> None:
+        dates_utc = pd.date_range("2023-01-01", periods=5, freq="B", tz="UTC")
+        dates_ny = pd.date_range("2023-01-01", periods=5, freq="B", tz="America/New_York")
+        df = pd.DataFrame(
+            {"A": pd.Series([100, 101, 102, 103, 104], index=dates_utc, dtype=float),
+             "B": pd.Series([200, 201, 202, 203, 204], index=dates_ny, dtype=float)},
+        )
+        result = clean_dataframe(df)
+        assert result.index.tz is None

@@ -199,28 +199,37 @@
     });
   };
 
-  /* ─── Metrics Cards ─── */
+  /* ─── Metrics Cards (primary + advanced) ─── */
   const renderMetrics = (metrics) => {
     const s = metrics.strategy;
-    const sentiment = (v) => v > 0 ? "positive" : v < 0 ? "negative" : "neutral";
+    const sent = (v) => v > 0 ? "positive" : v < 0 ? "negative" : "neutral";
 
-    const cards = [
-      { label: "Retorno total", value: fmtSign(s.total_return), cls: sentiment(s.total_return) },
-      { label: "Retorno anual.", value: fmtSign(s.annualized_return), cls: sentiment(s.annualized_return) },
-      { label: "Sharpe", value: fmt(s.sharpe_ratio, 2), cls: sentiment(s.sharpe_ratio) },
-      { label: "Sortino", value: fmt(s.sortino_ratio, 2), cls: sentiment(s.sortino_ratio) },
+    const primary = [
+      { label: "Retorno total", value: fmtSign(s.total_return), cls: sent(s.total_return) },
+      { label: "Sharpe", value: fmt(s.sharpe_ratio, 2), cls: sent(s.sharpe_ratio) },
       { label: "Max Drawdown", value: fmtPct(s.max_drawdown), cls: "negative" },
-      { label: "Calmar", value: fmt(s.calmar_ratio, 2), cls: sentiment(s.calmar_ratio) },
       { label: "Win Rate", value: fmtPct(s.win_rate), cls: s.win_rate > 0.5 ? "positive" : "neutral" },
-      { label: "Trades", value: s.total_trades, cls: "neutral" },
     ];
 
-    $.btMetricsGrid.innerHTML = cards.map((c) =>
+    const advanced = [
+      { label: "Retorno anual.", value: fmtSign(s.annualized_return), cls: sent(s.annualized_return) },
+      { label: "Sortino", value: fmt(s.sortino_ratio, 2), cls: sent(s.sortino_ratio) },
+      { label: "Calmar", value: fmt(s.calmar_ratio, 2), cls: sent(s.calmar_ratio) },
+      { label: "Profit Factor", value: fmt(s.profit_factor, 2), cls: sent((s.profit_factor || 1) - 1) },
+      { label: "Kelly %", value: s.kelly_fraction != null ? fmtPct(s.kelly_fraction) : "N/A", cls: "neutral" },
+      { label: "W/L Ratio", value: fmt(s.avg_win_loss_ratio, 2), cls: "neutral" },
+      { label: "Trades", value: s.total_trades, cls: "neutral" },
+      { label: "DD Duración", value: s.max_drawdown_duration_days != null ? `${s.max_drawdown_duration_days}d` : "N/A", cls: "neutral" },
+    ];
+
+    const cardHtml = (c) =>
       `<div class="metric-card">` +
         `<div class="mc-label">${escHtml(c.label)}</div>` +
         `<div class="mc-value ${c.cls}">${escHtml(String(c.value))}</div>` +
-      `</div>`
-    ).join("");
+      `</div>`;
+
+    $.btMetricsGrid.innerHTML = primary.map(cardHtml).join("");
+    $.btAdvancedMetrics.innerHTML = `<div class="bt-metrics-grid">${advanced.map(cardHtml).join("")}</div>`;
   };
 
   /* ─── Benchmark Row ─── */
@@ -558,10 +567,219 @@
     ).join("");
   };
 
+  /* ─── Progressive disclosure toggles ─── */
+  const setupToggle = (btn, panel, stateKey) => {
+    if (!btn || !panel) return;
+    btn.addEventListener("click", () => {
+      state[stateKey] = !state[stateKey];
+      panel.classList.toggle("hidden", !state[stateKey]);
+      btn.classList.toggle("bt-advanced-toggle--open", state[stateKey]);
+    });
+  };
+
+  setupToggle($.btAdvancedToggle, $.btAdvancedMetrics, "btAdvancedOpen");
+  setupToggle($.btMcAdvancedToggle, $.btMcAdvancedMetrics, "btMcAdvancedOpen");
+
+  /* ─── Portfolio backtest ─── */
+
+  // Set default dates for portfolio panel
+  if ($.pfTrainStart) {
+    $.pfTrainStart.value = isoDate(trainStart);
+    $.pfTrainEnd.value = isoDate(trainEnd);
+    $.pfTestStart.value = isoDate(testStart);
+    $.pfTestEnd.value = isoDate(testEnd);
+  }
+
+  const updatePfRunBtn = () => {
+    if (!$.pfRun) return;
+    $.pfRun.disabled = state.tickers.length < 2;
+  };
+
+  const loadPortfolioPanel = () => {
+    if (state.tickers.length >= 2) {
+      $.pfPanelTicker.textContent = `Portfolio — ${state.tickers.join(", ")}`;
+      $.pfPanelMeta.textContent = "Backtest multi-activo";
+      hide($.pfEmptyHint);
+    } else {
+      $.pfPanelTicker.textContent = "Portfolio";
+      $.pfPanelMeta.textContent = "Backtest multi-activo";
+      show($.pfEmptyHint);
+    }
+    updatePfRunBtn();
+
+    if (state.portfolioResult) {
+      renderPortfolioResults(state.portfolioResult);
+    }
+  };
+
+  const runPortfolioBacktest = () => {
+    if (state.tickers.length < 2) return;
+
+    const models = [];
+    if ($.pfUseArima.checked) models.push("arima");
+    if ($.pfUseHmm.checked) models.push("hmm");
+    if ($.pfUseGarch.checked) models.push("garch");
+
+    if (models.length === 0) {
+      $.pfErrorMsg.textContent = "Selecciona al menos un modelo";
+      show($.pfError);
+      return;
+    }
+
+    hide($.pfResults);
+    hide($.pfError);
+    hide($.pfEmptyHint);
+    show($.pfLoading);
+    $.pfRun.disabled = true;
+
+    const body = {
+      tickers: state.tickers,
+      train_start: $.pfTrainStart.value,
+      train_end: $.pfTrainEnd.value,
+      test_start: $.pfTestStart.value,
+      test_end: $.pfTestEnd.value,
+      models,
+      weight_scheme: $.pfWeightScheme.value,
+      initial_capital: parseFloat($.pfCapital.value) || 10000,
+    };
+
+    fetch("/backtest/portfolio/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+      .then((r) => {
+        if (!r.ok) return r.json().then((e) => { throw new Error(e.detail || `Error ${r.status}`); });
+        return r.json();
+      })
+      .then((data) => {
+        state.portfolioResult = data;
+        hide($.pfLoading);
+        renderPortfolioResults(data);
+        $.pfRun.disabled = false;
+      })
+      .catch((err) => {
+        hide($.pfLoading);
+        $.pfErrorMsg.textContent = err.message;
+        show($.pfError);
+        $.pfRun.disabled = false;
+      });
+  };
+
+  const renderPortfolioResults = (data) => {
+    show($.pfResults);
+
+    // Periods
+    $.pfPeriodsRow.innerHTML =
+      `<div class="bt-period-card">` +
+        `<div class="bt-period-label">Entrenamiento</div>` +
+        `<div class="bt-period-value">${escHtml(data.train_period.start)} &rarr; ${escHtml(data.train_period.end)}</div>` +
+      `</div>` +
+      `<div class="bt-period-card">` +
+        `<div class="bt-period-label">Prueba</div>` +
+        `<div class="bt-period-value">${escHtml(data.test_period.start)} &rarr; ${escHtml(data.test_period.end)}</div>` +
+      `</div>`;
+
+    // Equity chart
+    renderPortfolioEquityChart(data.portfolio_equity_curve);
+
+    // Weights
+    $.pfWeightsRow.innerHTML = Object.entries(data.weights).map(([t, w]) =>
+      `<div class="pf-weight-chip">` +
+        `<span class="pf-weight-ticker">${escHtml(t)}</span>` +
+        `<span class="pf-weight-value">${(w * 100).toFixed(1)}%</span>` +
+      `</div>`
+    ).join("");
+
+    // Portfolio metrics
+    const pm = data.portfolio_metrics;
+    const sent = (v) => v > 0 ? "positive" : v < 0 ? "negative" : "neutral";
+    const pfCards = [
+      { label: "Sharpe Portfolio", value: fmt(pm.portfolio_sharpe, 2), cls: sent(pm.portfolio_sharpe) },
+      { label: "VaR 95%", value: fmtPct(pm.var_95), cls: "negative" },
+      { label: "CVaR 95%", value: fmtPct(pm.cvar_95), cls: "negative" },
+      { label: "Effective N", value: fmt(pm.effective_n, 1), cls: "neutral" },
+    ];
+
+    $.pfMetricsGrid.innerHTML = pfCards.map((c) =>
+      `<div class="metric-card">` +
+        `<div class="mc-label">${escHtml(c.label)}</div>` +
+        `<div class="mc-value ${c.cls}">${escHtml(String(c.value))}</div>` +
+      `</div>`
+    ).join("");
+
+    // Per-asset (advanced)
+    let perAssetHtml = '<div class="bt-metrics-grid">';
+    for (const [ticker, info] of Object.entries(data.per_asset)) {
+      const sm = info.metrics?.strategy || {};
+      perAssetHtml +=
+        `<div class="metric-card">` +
+          `<div class="mc-label">${escHtml(ticker)}</div>` +
+          `<div class="mc-value">${fmtSign(sm.total_return)}</div>` +
+          `<div class="mc-detail">Sharpe ${fmt(sm.sharpe_ratio, 2)}</div>` +
+        `</div>`;
+    }
+    perAssetHtml += "</div>";
+    $.pfPerAsset.innerHTML = perAssetHtml;
+
+    // Warnings
+    if (data.warnings && data.warnings.length > 0) {
+      $.pfWarningsInner.innerHTML = data.warnings.map((w) =>
+        `<div class="warning-item"><span class="warning-icon">!</span><span>${escHtml(w)}</span></div>`
+      ).join("");
+      show($.pfWarnings);
+    } else {
+      hide($.pfWarnings);
+    }
+  };
+
+  const renderPortfolioEquityChart = (equity) => {
+    if (charts.pfEquity) charts.pfEquity.destroy();
+
+    const labels = equity.map((p) => p.date);
+    const ctx = document.getElementById("chart-pf-equity").getContext("2d");
+
+    charts.pfEquity = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [{
+          label: "Portfolio",
+          data: equity.map((p) => p.value),
+          borderColor: "#4fc3f7",
+          backgroundColor: "rgba(79,195,247,0.08)",
+          fill: true,
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0.1,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { labels: { color: "#c0c5c8", font: { size: 11 } } },
+          tooltip: { callbacks: { label: (c) => `${c.dataset.label}: $${c.parsed.y.toFixed(2)}` } },
+        },
+        scales: {
+          x: { ticks: { color: "#8a9194", maxTicksLimit: 8, font: { size: 10 } }, grid: { color: "rgba(255,255,255,0.04)" } },
+          y: { ticks: { color: "#8a9194", callback: (v) => `$${v.toLocaleString()}`, font: { size: 10 } }, grid: { color: "rgba(255,255,255,0.04)" } },
+        },
+      },
+    });
+  };
+
+  // Portfolio advanced toggle
+  setupToggle($.pfAdvancedToggle, $.pfPerAsset, "btAdvancedOpen");
+
   /* ─── Expose ─── */
   F.loadBacktestPanel = loadBacktestPanel;
+  F.loadPortfolioPanel = loadPortfolioPanel;
+  F.updatePfRunBtn = updatePfRunBtn;
 
   /* ─── Event Handlers ─── */
   $.btRun.addEventListener("click", runBacktest);
   $.btMcRun.addEventListener("click", runMonteCarlo);
+  if ($.pfRun) $.pfRun.addEventListener("click", runPortfolioBacktest);
 })();

@@ -772,7 +772,11 @@
   /* Empty state chip clicks */
   document.querySelectorAll(".empty-chip[data-ticker]").forEach((chip) => {
     chip.addEventListener("click", () => {
-      $.ticker.value = chip.dataset.ticker;
+      if (F.addTicker) {
+        F.addTicker(chip.dataset.ticker);
+      } else {
+        $.ticker.value = chip.dataset.ticker;
+      }
       F.runAnalysis();
     });
   });

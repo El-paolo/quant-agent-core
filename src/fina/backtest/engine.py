@@ -135,7 +135,83 @@ def run_backtest(
         "trading_days": len(test_returns),
     }
 
-    # ── Generate signals ──
+    # ── Run pipeline ──
+    pipeline = _run_single_ticker_pipeline(
+        train_returns=train_returns,
+        test_returns=test_returns,
+        test_prices=test_prices,
+        models=models,
+        initial_capital=initial_capital,
+        arima_threshold=arima_threshold,
+        hmm_states=hmm_states,
+        garch_target_vol=garch_target_vol,
+        commission_bps=commission_bps,
+    )
+
+    # ── Serialize timeseries for JSON response ──
+    sim = pipeline["simulation"]
+    equity_list = [
+        {"date": _date_str(idx), "value": round(float(v), 2)}
+        for idx, v in sim["equity_curve"].items()
+    ]
+    benchmark_list = [
+        {"date": _date_str(idx), "value": round(float(v), 2)}
+        for idx, v in sim["benchmark_equity"].items()
+    ]
+    positions_list = [
+        {"date": _date_str(idx), "value": round(float(v), 4)}
+        for idx, v in sim["positions"].items()
+    ]
+
+    return {
+        "ticker": ticker,
+        "train_period": actual_train,
+        "test_period": actual_test,
+        "models_used": models,
+        "signals": pipeline["signal_summaries"],
+        "metrics": pipeline["metrics"],
+        "equity_curve": equity_list,
+        "benchmark_curve": benchmark_list,
+        "positions": positions_list,
+        "trades": sim["trades"],
+        "warnings": pipeline["warnings"],
+    }
+
+
+def _run_single_ticker_pipeline(
+    train_returns: pd.Series,
+    test_returns: pd.Series,
+    test_prices: pd.Series,
+    models: list[str],
+    initial_capital: float = 10_000.0,
+    arima_threshold: float = 0.0,
+    hmm_states: int = 3,
+    garch_target_vol: float | None = None,
+    commission_bps: float = 0.0,
+) -> dict:
+    """
+    Core single-ticker backtest pipeline: signals → combine → simulate → metrics.
+
+    This is the reusable inner loop extracted from ``run_backtest``.
+    The portfolio engine calls this per ticker.
+
+    Args:
+        train_returns: Return series for the training period.
+        test_returns:  Return series for the test period.
+        test_prices:   Price series for the test period.
+        models:        Which models to use.
+        initial_capital: Starting capital for simulation.
+        arima_threshold: ARIMA signal threshold.
+        hmm_states:    HMM state count.
+        garch_target_vol: GARCH vol target.
+        commission_bps: Commission in basis points.
+
+    Returns:
+        dict with keys: signal_summaries, simulation, metrics, warnings.
+
+    Raises:
+        BacktestError: If all models fail.
+    """
     warnings_list: list[str] = []
     signal_summaries: dict = {}
     arima_sig = None
@@ -148,7 +224,7 @@ def run_backtest(
                 train_returns, test_returns,
                 threshold=arima_threshold,
             )
-            arima_sig = arima_result["signals"]  # may be None if ARIMA(0,0,0)
+            arima_sig = arima_result["signals"]
             warnings_list.extend(arima_result["warnings"])
             if arima_sig is not None:
                 signal_summaries["arima"] = {
@@ -209,24 +285,20 @@ def run_backtest(
             warnings_list.append(f"GARCH: {exc}")
             signal_summaries["garch"] = None
 
-    # Check we have at least one signal source
     if arima_sig is None and hmm_sig is None and garch_siz is None:
         raise BacktestError(
             "All models failed — cannot generate signals. " +
             "; ".join(warnings_list)
         )
 
-    # ── Combine signals → positions ──
     positions = combine_signals(arima_sig, hmm_sig, garch_siz)
 
-    # ── Simulate strategy ──
     sim = simulate_strategy(
         positions, test_prices,
         initial_capital=initial_capital,
         commission_bps=commission_bps,
     )
 
-    # ── Compute metrics ──
     metrics = compute_backtest_metrics(
         equity_curve=sim["equity_curve"],
         daily_returns=sim["daily_returns"],
@@ -236,31 +308,10 @@ def run_backtest(
         initial_capital=initial_capital,
     )
 
-    # ── Serialize timeseries for JSON response ──
-    equity_list = [
-        {"date": _date_str(idx), "value": round(float(v), 2)}
-        for idx, v in sim["equity_curve"].items()
-    ]
-    benchmark_list = [
-        {"date": _date_str(idx), "value": round(float(v), 2)}
-        for idx, v in sim["benchmark_equity"].items()
-    ]
-    positions_list = [
-        {"date": _date_str(idx), "value": round(float(v), 4)}
-        for idx, v in sim["positions"].items()
-    ]
-
     return {
-        "ticker": ticker,
-        "train_period": actual_train,
-        "test_period": actual_test,
-        "models_used": models,
-        "signals": signal_summaries,
+        "signal_summaries": signal_summaries,
+        "simulation": sim,
         "metrics": metrics,
-        "equity_curve": equity_list,
-        "benchmark_curve": benchmark_list,
-        "positions": positions_list,
-        "trades": sim["trades"],
         "warnings": warnings_list,
     }
 

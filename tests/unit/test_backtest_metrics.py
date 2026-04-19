@@ -56,7 +56,8 @@ class TestComputeBacktestMetrics:
             "sharpe_ratio", "sortino_ratio", "max_drawdown",
             "max_drawdown_duration_days", "calmar_ratio",
             "win_rate", "avg_trade_return", "avg_trade_duration_days",
-            "total_trades",
+            "total_trades", "profit_factor", "avg_win_loss_ratio",
+            "kelly_fraction",
         }
         assert expected_keys == set(strat.keys())
 

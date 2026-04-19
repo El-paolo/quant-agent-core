@@ -207,6 +207,15 @@ def detect_outliers(
     return outliers
 
 
+def _require_dataframe(df: object, name: str = "prices") -> pd.DataFrame:
+    """Raise ValidationError if *df* is not a pd.DataFrame."""
+    if not isinstance(df, pd.DataFrame):
+        raise ValidationError(
+            f"'{name}' must be a pandas DataFrame; got {type(df).__name__}."
+        )
+    return df  # type: ignore[return-value]
+
+
 def clean_prices(
     prices: pd.Series,
     nan_method: str = "ffill",
@@ -251,4 +260,62 @@ def clean_prices(
 
     result: pd.Series = cleaned
     result.attrs["outlier_count"] = outlier_count
+    return result
+
+
+def clean_dataframe(
+    prices: pd.DataFrame,
+    nan_method: str = "ffill",
+    outlier_threshold: float | None = 3.5,
+) -> pd.DataFrame:
+    """
+    Clean a multi-ticker price DataFrame by applying ``clean_prices`` per column.
+
+    After per-column cleaning, aligns all columns to their intersection index
+    (inner join on dates) so the resulting DataFrame has no NaN values.
+
+    Args:
+        prices:            DataFrame with one column per ticker, DatetimeIndex.
+        nan_method:        NaN fill strategy (see :func:`handle_nans`).
+        outlier_threshold: Modified Z-score threshold for outlier flagging.
+                           Pass ``None`` to skip.
+
+    Returns:
+        Cleaned DataFrame with aligned DatetimeIndex. ``df.attrs["outlier_counts"]``
+        contains a dict of per-ticker outlier counts.
+
+    Raises:
+        ValidationError: On invalid input type.
+    """
+    _require_dataframe(prices)
+
+    if prices.empty:
+        result = prices.copy()
+        result.attrs["outlier_counts"] = {}
+        return result
+
+    cleaned_cols: dict[str, pd.Series] = {}
+    outlier_counts: dict[str, int] = {}
+
+    for col in prices.columns:
+        series = prices[col]
+        non_null_count = series.notna().sum()
+        if non_null_count < 2:
+            continue
+        cleaned = clean_prices(
+            series, nan_method=nan_method, outlier_threshold=outlier_threshold
+        )
+        cleaned_cols[col] = cleaned
+        outlier_counts[col] = cleaned.attrs.get("outlier_count", 0)
+
+    if not cleaned_cols:
+        raise ValidationError(
+            "No columns have sufficient data after cleaning."
+        )
+
+    result = pd.DataFrame(cleaned_cols)
+    # Inner join: keep only dates present in ALL columns
+    result = result.dropna()
+
+    result.attrs["outlier_counts"] = outlier_counts
     return result

@@ -39,7 +39,7 @@ async def agent_summarize(
     """
     try:
         headlines, summary = await asyncio.to_thread(
-            _run_summarize, request.ticker, settings, request.summary_prompt,
+            _run_summarize, request.first_ticker, settings, request.summary_prompt,
         )
     except ConfigError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
@@ -49,7 +49,7 @@ async def agent_summarize(
         raise HTTPException(status_code=500, detail="Agent summarization failed")
 
     return AgentResponse(
-        ticker=request.ticker,
+        ticker=request.first_ticker,
         summary=summary,
         headlines=[h["title"] for h in headlines],
     )

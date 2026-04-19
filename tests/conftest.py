@@ -74,3 +74,23 @@ def prices_with_negatives() -> pd.Series:
     """Price series containing non-positive values — should trigger validation errors."""
     dates = pd.date_range("2023-01-01", periods=5, freq="B")
     return pd.Series([100.0, 101.0, -5.0, 103.0, 104.0], index=dates, name="TEST")
+
+
+@pytest.fixture
+def sample_prices_multi() -> pd.DataFrame:
+    """
+    Deterministic multi-ticker price DataFrame (3 tickers, 252 trading days).
+
+    Each ticker follows a log-normal random walk with slightly different
+    drift and volatility to simulate realistic correlation structure.
+    """
+    dates = pd.date_range("2023-01-01", periods=252, freq="B")
+    rng = np.random.default_rng(42)
+    return pd.DataFrame(
+        {
+            "AAPL": 100 * np.exp(np.cumsum(rng.normal(0.0005, 0.02, 252))),
+            "MSFT": 200 * np.exp(np.cumsum(rng.normal(0.0004, 0.018, 252))),
+            "GOOGL": 150 * np.exp(np.cumsum(rng.normal(0.0003, 0.022, 252))),
+        },
+        index=dates,
+    )

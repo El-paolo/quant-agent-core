@@ -14,8 +14,10 @@ Security notes:
     or log-injection via date parameters.
 """
 
+import logging
 import re
 import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime
 
 import pandas as pd
@@ -24,6 +26,8 @@ from cachetools import TTLCache
 from cachetools.keys import hashkey
 
 from fina.core.exceptions import FetcherError
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Cache — avoids redundant yfinance network calls for the same ticker/period.
@@ -314,6 +318,110 @@ def fetch_ohlc(
     ohlc = df[["Open", "High", "Low", "Close"]].copy()
     ohlc.columns = ["open", "high", "low", "close"]
     return ohlc.dropna()
+
+
+# ---------------------------------------------------------------------------
+# Multi-ticker universe fetching
+# ---------------------------------------------------------------------------
+
+_MAX_UNIVERSE = 50
+
+
+def _sanitize_tickers(tickers: list) -> list[str]:
+    """
+    Validate and deduplicate a list of ticker symbols.
+
+    Raises:
+        FetcherError: If input is not a list, is empty, or exceeds max size.
+    """
+    if not isinstance(tickers, list):
+        raise FetcherError(
+            f"'tickers' must be a list of strings; got {type(tickers).__name__}."
+        )
+    if len(tickers) == 0:
+        raise FetcherError("'tickers' must not be empty.")
+    if len(tickers) > _MAX_UNIVERSE:
+        raise FetcherError(
+            f"Universe too large: {len(tickers)} tickers "
+            f"(maximum {_MAX_UNIVERSE})."
+        )
+
+    seen: set[str] = set()
+    cleaned: list[str] = []
+    for t in tickers:
+        s = _sanitize_ticker(t)
+        if s not in seen:
+            seen.add(s)
+            cleaned.append(s)
+    return cleaned
+
+
+def fetch_universe(
+    tickers: list[str],
+    start: str | date | None = None,
+    end: str | date | None = None,
+    period: str | None = "1y",
+) -> pd.DataFrame:
+    """
+    Fetch adjusted close prices for multiple tickers in parallel.
+
+    Uses ``ThreadPoolExecutor`` to fetch tickers concurrently, reusing
+    the per-ticker cache from ``fetch_close_prices``.
+
+    Args:
+        tickers: List of ticker symbols (e.g. ``["AAPL", "MSFT", "GOOGL"]``).
+        start:   Start date (ISO-8601 string or date object).
+        end:     End date.
+        period:  yfinance period string (ignored when ``start`` is given).
+
+    Returns:
+        ``pd.DataFrame`` with a ``DatetimeIndex`` and one column per
+        successfully fetched ticker.  Columns are ordered as in the
+        input list (minus any that failed).
+
+    Raises:
+        FetcherError: If no tickers could be fetched successfully, or if
+                      the input list is invalid.
+    """
+    cleaned = _sanitize_tickers(tickers)
+    results: dict[str, pd.Series] = {}
+    warnings: list[str] = []
+
+    max_workers = min(len(cleaned), 8)
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_ticker = {
+            executor.submit(
+                fetch_close_prices, t, start=start, end=end, period=period
+            ): t
+            for t in cleaned
+        }
+        for future in as_completed(future_to_ticker):
+            ticker = future_to_ticker[future]
+            try:
+                results[ticker] = future.result()
+            except FetcherError as exc:
+                msg = f"Failed to fetch '{ticker}': {exc}"
+                warnings.append(msg)
+                logger.warning(msg)
+
+    if not results:
+        raise FetcherError(
+            "No tickers could be fetched. "
+            + "; ".join(warnings)
+        )
+
+    # Build DataFrame preserving input order
+    ordered = [t for t in cleaned if t in results]
+    df = pd.DataFrame({t: results[t] for t in ordered})
+
+    # Align to common date index (inner join)
+    df = df.dropna(how="all")
+
+    df.attrs["warnings"] = warnings
+    df.attrs["failed_tickers"] = [t for t in cleaned if t not in results]
+
+    return df
 
 
 # ---------------------------------------------------------------------------

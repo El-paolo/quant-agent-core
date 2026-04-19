@@ -19,11 +19,12 @@
   /* ─── Pin System ─── */
   const PIN_COLORS = ["#f87171", "#fbbf24", "#34d399", "#a78bfa", "#f472b6", "#38bdf8", "#fb923c", "#4ade80"];
   const PIN_MAX = 8;
+  const DOUBLE_CLICK_DELAY = 300;
 
   // Pin groups: charts that share the same date axis sync pins together
   const pinGroups = {
-    technicals: { chartKeys: ["rsi", "macd", "techBb"], pins: [] },
-    metrics:    { chartKeys: ["vol", "bb", "volume", "price"], pins: [] },
+    technicals: { chartKeys: ["rsi", "macd", "techBb"], pins: [], lastClickTime: 0, lastClickIdx: -1 },
+    metrics:    { chartKeys: ["vol", "bb", "volume", "price"], pins: [], lastClickTime: 0, lastClickIdx: -1 },
   };
 
   const pinLinesPlugin = {
@@ -44,18 +45,23 @@
         if (x < xScale.left || x > xScale.right) continue;
 
         ctx.strokeStyle = pin.color;
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 2;
         ctx.setLineDash([]);
         ctx.beginPath();
         ctx.moveTo(x, yScale.top);
         ctx.lineTo(x, yScale.bottom);
         ctx.stroke();
 
-        // Date label at top
+        // Date label at top with background
         ctx.fillStyle = pin.color;
+        ctx.globalAlpha = 0.9;
+        const textWidth = ctx.measureText(pin.date).width;
+        ctx.fillRect(x - textWidth / 2 - 3, yScale.top - 16, textWidth + 6, 12);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = "#fff";
         ctx.font = "bold 9px Inter, system-ui, sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(pin.date, x, yScale.top - 4);
+        ctx.fillText(pin.date, x, yScale.top - 5);
       }
       ctx.restore();
     },
@@ -83,16 +89,30 @@
     const idx = Math.round(xScale.getValueForPixel(clickX));
     if (idx < 0 || idx >= chart.data.labels.length) return;
 
-    // If this index is already pinned, remove it
-    const existing = group.pins.findIndex((p) => p.index === idx);
-    if (existing !== -1) {
-      group.pins.splice(existing, 1);
+    const now = Date.now();
+    const isDoubleClick = (now - group.lastClickTime < DOUBLE_CLICK_DELAY) && (idx === group.lastClickIdx);
+
+    group.lastClickTime = now;
+    group.lastClickIdx = idx;
+
+    if (isDoubleClick) {
+      // Double-click: remove pin at this index or clear all if 2 clicks on empty area
+      const existing = group.pins.findIndex((p) => p.index === idx);
+      if (existing !== -1) {
+        group.pins.splice(existing, 1);
+      } else if (group.pins.length > 0) {
+        // Two clicks on empty area with pins → clear all
+        group.pins.length = 0;
+      }
+      group.lastClickTime = 0; // Reset counter
     } else {
-      if (group.pins.length >= PIN_MAX) group.pins.shift();
-      const fullLabels = chart.data.datasets[0]?.data ? chart._pinFullDates || chart.data.labels : chart.data.labels;
-      const date = fullLabels[idx] || `#${idx}`;
-      const colorIdx = group.pins.length % PIN_COLORS.length;
-      group.pins.push({ index: idx, date: String(date), color: PIN_COLORS[colorIdx] });
+      // Single click: add pin if no pins exist
+      if (group.pins.length === 0) {
+        const fullLabels = chart.data.datasets[0]?.data ? chart._pinFullDates || chart.data.labels : chart.data.labels;
+        const date = fullLabels[idx] || `#${idx}`;
+        const colorIdx = group.pins.length % PIN_COLORS.length;
+        group.pins.push({ index: idx, date: String(date), color: PIN_COLORS[colorIdx] });
+      }
     }
 
     // Redraw all charts in the group
@@ -104,13 +124,15 @@
   const setupPinListeners = (chartKey, groupName) => {
     const chart = charts[chartKey];
     if (!chart) return;
-    chart.canvas.addEventListener("dblclick", (e) => handlePinClick(groupName, e, chart));
+    chart.canvas.addEventListener("click", (e) => handlePinClick(groupName, e, chart));
   };
 
   const clearPins = (groupName) => {
     const group = pinGroups[groupName];
     if (!group) return;
     group.pins.length = 0;
+    group.lastClickTime = 0;
+    group.lastClickIdx = -1;
     for (const key of group.chartKeys) {
       if (charts[key]) charts[key].update("none");
     }

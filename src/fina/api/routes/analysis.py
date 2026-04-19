@@ -22,10 +22,16 @@ async def analyze(
 
     Raises HTTP 422 for bad input or data issues, 500 for unexpected errors.
     """
+    if len(request.tickers) > 1:
+        raise HTTPException(
+            status_code=422,
+            detail="Multi-ticker analysis not yet supported. Use a single ticker.",
+        )
+
     try:
         result = await asyncio.to_thread(
             run_analysis,
-            ticker=request.ticker,
+            ticker=request.first_ticker,
             period=request.period,
             metrics=request.metrics,
         )
@@ -37,7 +43,7 @@ async def analyze(
     return AnalysisResponse(
         status="ok",
         data=MetricsPayload(
-            ticker=request.ticker,
+            ticker=request.first_ticker,
             period=request.period,
             computed=result,
         ),

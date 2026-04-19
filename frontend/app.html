@@ -33,16 +33,20 @@
     <a href="/" class="cb-logo" aria-label="FINA home">FINA</a>
 
     <div class="cb-controls">
-      <input
-        type="text"
-        id="ticker-input"
-        class="cb-input"
-        placeholder="AAPL"
-        maxlength="20"
-        autocomplete="off"
-        spellcheck="false"
-        aria-label="Ticker symbol"
-      />
+      <div class="cb-tickers-wrap" id="tickers-wrap">
+        <div class="cb-ticker-tags" id="ticker-tags"></div>
+        <input
+          type="text"
+          id="ticker-input"
+          class="cb-input cb-input--tags"
+          placeholder="AAPL"
+          maxlength="20"
+          autocomplete="off"
+          spellcheck="false"
+          aria-label="Ticker symbol (comma or Enter to add)"
+        />
+      </div>
+      <span class="cb-badge hidden" id="portfolio-badge">Portfolio</span>
 
       <select id="period-select" class="cb-select" aria-label="Período de análisis">
         <option value="1d">1D</option>
@@ -75,45 +79,54 @@
 
     <!-- LEFT RAIL -->
     <aside class="rail" id="rail">
-      <nav class="rail-nav" aria-label="Workspace navigation">
-        <button class="rail-link rail-link--active" data-panel="overview" aria-current="page">
-          <svg class="rail-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
-            <rect x="3" y="3" width="6" height="6" rx="1"/>
-            <rect x="11" y="3" width="6" height="6" rx="1"/>
-            <rect x="3" y="11" width="6" height="6" rx="1"/>
-            <rect x="11" y="11" width="6" height="6" rx="1"/>
-          </svg>
-          <span class="rail-label">Overview</span>
+      <nav class="rail-nav" aria-label="Strategy pipeline">
+
+        <div class="rail-section-label">Pipeline</div>
+
+        <!-- Step 1: Universo -->
+        <button class="rail-link rail-link--active rail-step" data-panel="overview" data-step="1" aria-current="page">
+          <span class="rail-step-num">1</span>
+          <span class="rail-label">Universo</span>
         </button>
-        <button class="rail-link" data-panel="metrics">
-          <svg class="rail-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M3 17V8l4-5 4 6 3-3 3 4v7z"/>
-          </svg>
-          <span class="rail-label">Métricas</span>
+
+        <!-- Step 2: Exploración -->
+        <button class="rail-link rail-step rail-step--locked" data-panel="metrics" data-step="2">
+          <span class="rail-step-num">2</span>
+          <span class="rail-label">Exploración</span>
         </button>
+
+        <!-- Step 3: Modelos -->
+        <button class="rail-link rail-step rail-step--locked" data-panel="models" data-step="3">
+          <span class="rail-step-num">3</span>
+          <span class="rail-label">Modelos</span>
+        </button>
+
+        <!-- Step 4: Backtest -->
+        <button class="rail-link rail-step rail-step--locked" data-panel="backtest" data-step="4">
+          <span class="rail-step-num">4</span>
+          <span class="rail-label">Backtest</span>
+        </button>
+
+        <!-- Step 5: Portfolio -->
+        <button class="rail-link rail-step rail-step--locked" data-panel="portfolio" data-step="5">
+          <span class="rail-step-num">5</span>
+          <span class="rail-label">Portfolio</span>
+        </button>
+
+        <!-- Step 6: Predicciones -->
+        <button class="rail-link rail-step rail-step--locked" data-panel="predictions" data-step="6">
+          <span class="rail-step-num">6</span>
+          <span class="rail-label">Predicciones</span>
+        </button>
+
+        <div class="rail-divider"></div>
+        <div class="rail-section-label">Auxiliar</div>
+
         <button class="rail-link" data-panel="technicals">
           <svg class="rail-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M2 10h3l2-6 3 12 2-8 2 4h4"/>
           </svg>
           <span class="rail-label">Técnicos</span>
-        </button>
-        <button class="rail-link" data-panel="models">
-          <svg class="rail-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M3 17V7l4-4 4 6 3-3 3 4v7"/>
-            <circle cx="7" cy="3" r="1.2"/>
-          </svg>
-          <span class="rail-label">Modelos</span>
-        </button>
-        <button class="rail-link" data-panel="backtest">
-          <svg class="rail-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M2 16h16M4 12l3-5 3 3 3-7 3 5"/>
-            <circle cx="4" cy="12" r="1"/>
-            <circle cx="7" cy="7" r="1"/>
-            <circle cx="10" cy="10" r="1"/>
-            <circle cx="13" cy="3" r="1"/>
-            <circle cx="16" cy="8" r="1"/>
-          </svg>
-          <span class="rail-label">Backtest</span>
         </button>
         <button class="rail-link" data-panel="news">
           <svg class="rail-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -124,7 +137,6 @@
           </svg>
           <span class="rail-label">Noticias & IA</span>
         </button>
-        <!-- Chat panel: hidden until backend multi-turn endpoint is ready -->
         <button class="rail-link" data-panel="methodology">
           <svg class="rail-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M4 3h9l4 4v10a1 1 0 01-1 1H4a1 1 0 01-1-1V4a1 1 0 011-1z"/>
@@ -135,8 +147,6 @@
           <span class="rail-label">Metodología</span>
         </button>
       </nav>
-
-      <div class="rail-divider"></div>
 
       <!-- Parameters -->
       <div class="rail-params">
@@ -240,6 +250,14 @@
         <!-- Warnings -->
         <div class="warnings hidden" id="warnings">
           <div class="warnings-inner" id="warnings-inner"></div>
+        </div>
+
+        <!-- Next step CTA -->
+        <div class="pipeline-next" id="next-step-overview">
+          <button class="pipeline-next-btn" data-goto="metrics" type="button">
+            <span>Siguiente: Exploración</span>
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="6 3 11 8 6 13"/></svg>
+          </button>
         </div>
 
       </div>
@@ -371,6 +389,14 @@
               de las últimas 20 sesiones de trading. Picos de volumen respecto al
               promedio suelen indicar interés institucional o eventos de mercado relevantes.
             </p>
+          </div>
+
+          <!-- Next step CTA -->
+          <div class="pipeline-next">
+            <button class="pipeline-next-btn" data-goto="models" type="button">
+              <span>Siguiente: Modelos</span>
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="6 3 11 8 6 13"/></svg>
+            </button>
           </div>
 
         </div>
@@ -636,6 +662,14 @@
             <div class="models-warnings-inner" id="models-warnings-inner"></div>
           </div>
 
+          <!-- Next step CTA -->
+          <div class="pipeline-next">
+            <button class="pipeline-next-btn" data-goto="backtest" type="button">
+              <span>Siguiente: Backtest</span>
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="6 3 11 8 6 13"/></svg>
+            </button>
+          </div>
+
         </div>
       </div>
 
@@ -700,6 +734,12 @@
 
           <div class="bt-metrics-grid" id="bt-metrics-grid"></div>
 
+          <button class="bt-advanced-toggle" id="bt-advanced-toggle" type="button">
+            <svg class="bt-adv-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 6 8 10 12 6"/></svg>
+            <span>Metricas avanzadas</span>
+          </button>
+          <div class="bt-advanced-metrics hidden" id="bt-advanced-metrics"></div>
+
           <div class="bt-section">
             <h3 class="bt-section-title">Benchmark (Buy & Hold)</h3>
             <div class="bt-benchmark-row" id="bt-benchmark-row"></div>
@@ -754,13 +794,225 @@
 
               <div class="bt-mc-risk-row" id="bt-mc-risk-row"></div>
 
-              <div class="bt-mc-dist-grid" id="bt-mc-dist-grid"></div>
+              <button class="bt-advanced-toggle" id="bt-mc-advanced-toggle" type="button">
+                <svg class="bt-adv-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 6 8 10 12 6"/></svg>
+                <span>Distribuciones avanzadas</span>
+              </button>
+              <div class="bt-advanced-metrics hidden" id="bt-mc-advanced-metrics">
+                <div class="bt-mc-dist-grid" id="bt-mc-dist-grid"></div>
+              </div>
 
               <div class="models-warnings hidden" id="bt-mc-warnings">
                 <div class="models-warnings-inner" id="bt-mc-warnings-inner"></div>
               </div>
             </div>
           </div>
+
+          <!-- Next step CTA -->
+          <div class="pipeline-next" id="next-step-backtest">
+            <button class="pipeline-next-btn" data-goto="portfolio" type="button">
+              <span>Siguiente: Portfolio</span>
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="6 3 11 8 6 13"/></svg>
+            </button>
+            <span class="pipeline-next-hint">Agrega 2+ tickers para habilitar el portfolio backtest</span>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- ── PORTFOLIO PANEL ── -->
+      <div id="portfolio-panel" class="panel hidden">
+        <div class="panel-header">
+          <h2 class="panel-title" id="portfolio-panel-ticker">Portfolio</h2>
+          <span class="panel-meta" id="portfolio-panel-meta">Backtest multi-activo</span>
+        </div>
+
+        <!-- Config -->
+        <div class="backtest-config" id="pf-config">
+          <div class="bt-form-grid">
+            <div class="bt-field-group">
+              <label class="bt-label">Periodo de entrenamiento</label>
+              <div class="bt-date-row">
+                <input type="date" id="pf-train-start" class="bt-date" />
+                <span class="bt-date-sep">&rarr;</span>
+                <input type="date" id="pf-train-end" class="bt-date" />
+              </div>
+            </div>
+            <div class="bt-field-group">
+              <label class="bt-label">Periodo de prueba</label>
+              <div class="bt-date-row">
+                <input type="date" id="pf-test-start" class="bt-date" />
+                <span class="bt-date-sep">&rarr;</span>
+                <input type="date" id="pf-test-end" class="bt-date" />
+              </div>
+            </div>
+          </div>
+
+          <div class="bt-options-row">
+            <div class="bt-checkboxes">
+              <label class="bt-check"><input type="checkbox" id="pf-use-arima" checked /> ARIMA</label>
+              <label class="bt-check"><input type="checkbox" id="pf-use-hmm" checked /> HMM</label>
+              <label class="bt-check"><input type="checkbox" id="pf-use-garch" checked /> GARCH</label>
+            </div>
+            <div class="bt-capital-field">
+              <label class="bt-label" for="pf-weight-scheme">Pesos</label>
+              <select id="pf-weight-scheme" class="bt-input-sm">
+                <option value="equal" selected>Equal</option>
+                <option value="inverse_vol">Inv. Vol</option>
+              </select>
+            </div>
+            <div class="bt-capital-field">
+              <label class="bt-label" for="pf-capital">Capital</label>
+              <input type="number" id="pf-capital" class="bt-input-sm" value="10000" min="100" step="1000" />
+            </div>
+            <button id="pf-run" class="cb-btn bt-run-btn" disabled>Ejecutar Portfolio</button>
+          </div>
+        </div>
+
+        <!-- Loading / Error -->
+        <div class="panel-loading hidden" id="pf-loading">
+          <div class="spinner"></div>
+          <p>Ejecutando backtest multi-activo...</p>
+        </div>
+        <div class="panel-error hidden" id="pf-error">
+          <p id="pf-error-msg" class="error-text"></p>
+        </div>
+        <div class="pf-empty-hint" id="pf-empty-hint">
+          <p class="mc-detail">Agrega 2+ tickers en la barra superior para habilitar el portfolio backtest.</p>
+        </div>
+
+        <!-- Results -->
+        <div class="hidden" id="pf-results">
+          <div class="bt-periods-row" id="pf-periods-row"></div>
+
+          <div class="bt-section">
+            <h3 class="bt-section-title">Equity del portfolio</h3>
+            <div class="chart-wrap"><canvas id="chart-pf-equity"></canvas></div>
+          </div>
+
+          <div class="bt-section">
+            <h3 class="bt-section-title">Pesos</h3>
+            <div class="pf-weights-row" id="pf-weights-row"></div>
+          </div>
+
+          <div class="bt-metrics-grid" id="pf-metrics-grid"></div>
+
+          <button class="bt-advanced-toggle" id="pf-advanced-toggle" type="button">
+            <svg class="bt-adv-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 6 8 10 12 6"/></svg>
+            <span>Metricas por activo</span>
+          </button>
+          <div class="bt-advanced-metrics hidden" id="pf-per-asset"></div>
+
+          <div class="models-warnings hidden" id="pf-warnings">
+            <div class="models-warnings-inner" id="pf-warnings-inner"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── PREDICTIONS PANEL ── -->
+      <div id="predictions-panel" class="panel hidden">
+        <div class="panel-header">
+          <h2 class="panel-title">Predicciones</h2>
+          <span class="panel-meta" id="predictions-panel-meta">Registro y validación de pronósticos</span>
+        </div>
+
+        <div id="predictions-content" class="hidden">
+
+          <!-- Formulario para agregar predicción -->
+          <div class="predictions-form-section">
+            <h3 class="predictions-form-title">Registrar predicción</h3>
+            <form id="predictions-form" class="predictions-form">
+              <div class="predictions-form-row">
+                <label class="form-label">
+                  <span>Ticker</span>
+                  <input type="text" id="pred-ticker" placeholder="AAPL" required />
+                </label>
+                <label class="form-label">
+                  <span>Fecha destino</span>
+                  <input type="date" id="pred-target-date" required />
+                </label>
+                <label class="form-label">
+                  <span>Precio predicho</span>
+                  <input type="number" id="pred-price" placeholder="150.50" step="0.01" required />
+                </label>
+                <label class="form-label">
+                  <span>Confianza (%)</span>
+                  <input type="number" id="pred-confidence" min="0" max="100" value="50" />
+                </label>
+              </div>
+              <button type="submit" class="btn-primary">Agregar predicción</button>
+            </form>
+          </div>
+
+          <!-- Selector de métricas -->
+          <div class="predictions-metrics-selector">
+            <h3 class="metrics-selector-title">
+              <button type="button" id="metrics-selector-toggle" class="metrics-selector-chevron">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 6 8 10 12 6"/></svg>
+              </button>
+              Mostrar columnas
+            </h3>
+            <div id="metrics-selector-body" class="metrics-selector-body">
+              <label class="metric-check">
+                <input type="checkbox" value="target_date" checked /> Fecha destino
+              </label>
+              <label class="metric-check">
+                <input type="checkbox" value="predicted_price" checked /> Precio predicho
+              </label>
+              <label class="metric-check">
+                <input type="checkbox" value="real_price" checked /> Precio real
+              </label>
+              <label class="metric-check">
+                <input type="checkbox" value="confidence" checked /> Confianza
+              </label>
+              <label class="metric-check">
+                <input type="checkbox" value="mae" checked /> MAE
+              </label>
+              <label class="metric-check">
+                <input type="checkbox" value="accuracy" checked /> Precisión (%)
+              </label>
+              <label class="metric-check">
+                <input type="checkbox" value="status" checked /> Estado
+              </label>
+              <label class="metric-check">
+                <input type="checkbox" value="created_at" /> Fecha creación
+              </label>
+              <label class="metric-check">
+                <input type="checkbox" value="error_pct" /> Error (%)
+              </label>
+            </div>
+          </div>
+
+          <!-- Tabla de predicciones -->
+          <div class="predictions-table-section">
+            <div class="predictions-table-controls">
+              <h3 class="predictions-table-title" id="predictions-table-count">Predicciones (0)</h3>
+              <button type="button" id="predictions-export-btn" class="btn-secondary">Exportar CSV</button>
+            </div>
+            <div class="predictions-table-wrapper">
+              <table id="predictions-table" class="predictions-table">
+                <thead>
+                  <tr id="predictions-table-header"></tr>
+                </thead>
+                <tbody id="predictions-table-body"></tbody>
+              </table>
+              <div id="predictions-empty" class="predictions-empty hidden">
+                <p>Sin predicciones registradas</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div id="predictions-loading" class="panel-loading hidden">
+          <div class="spinner"></div>
+          <p>Cargando predicciones...</p>
+        </div>
+
+        <div id="predictions-error" class="panel-error hidden">
+          <p class="panel-error-msg" id="predictions-error-msg"></p>
         </div>
 
       </div>
@@ -1017,6 +1269,7 @@
   <script src="/static/js/api.js"></script>
   <script src="/static/js/panels.js"></script>
   <script src="/static/js/backtest.js"></script>
+  <script src="/static/js/predictions.js"></script>
   <script src="/static/js/assistant.js"></script>
 </body>
 </html>
