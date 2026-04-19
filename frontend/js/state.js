@@ -85,10 +85,12 @@
     portfolioResult: null,
     /* Predictions */
     predictions: [],
+    predictionsVisibleCharts: ["metrics"],
     predictionsVisibleMetrics: ["target_date", "predicted_price", "real_price", "confidence", "mae", "accuracy", "status"],
     /* Progressive disclosure toggles */
     btAdvancedOpen: false,
     btMcAdvancedOpen: false,
+    predChartsOpen: false,
     predMetricsOpen: false,
     /* Assistant */
     chatMessages: [],
@@ -282,6 +284,10 @@
     predTargetDate:          document.getElementById("pred-target-date"),
     predPrice:               document.getElementById("pred-price"),
     predConfidence:          document.getElementById("pred-confidence"),
+    chartsSelectToggle:      document.getElementById("charts-selector-toggle"),
+    chartsSelectBody:        document.getElementById("charts-selector-body"),
+    chartsContainer:         document.getElementById("predictions-charts-container"),
+    chartsGrid:              document.getElementById("predictions-charts-grid"),
     metricsSelectToggle:     document.getElementById("metrics-selector-toggle"),
     metricsSelectBody:       document.getElementById("metrics-selector-body"),
     predTableCount:          document.getElementById("predictions-table-count"),

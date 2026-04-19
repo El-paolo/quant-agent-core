@@ -946,6 +946,41 @@
             </form>
           </div>
 
+          <!-- Selector de gráficas personalizadas -->
+          <div class="predictions-charts-selector">
+            <h3 class="charts-selector-title">
+              <button type="button" id="charts-selector-toggle" class="charts-selector-chevron">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 6 8 10 12 6"/></svg>
+              </button>
+              Tablero de análisis
+            </h3>
+            <div id="charts-selector-body" class="charts-selector-body">
+              <label class="chart-check">
+                <input type="checkbox" value="price" /> Gráfico de precios
+              </label>
+              <label class="chart-check">
+                <input type="checkbox" value="volume" /> Volumen
+              </label>
+              <label class="chart-check">
+                <input type="checkbox" value="rsi" /> RSI (Momentum)
+              </label>
+              <label class="chart-check">
+                <input type="checkbox" value="macd" /> MACD (Señal)
+              </label>
+              <label class="chart-check">
+                <input type="checkbox" value="bollinger" /> Bollinger Bands
+              </label>
+              <label class="chart-check">
+                <input type="checkbox" value="metrics" checked /> Métricas calculadas
+              </label>
+            </div>
+          </div>
+
+          <!-- Tablero de gráficas dinámicas -->
+          <div id="predictions-charts-container" class="predictions-charts-container hidden">
+            <div id="predictions-charts-grid"></div>
+          </div>
+
           <!-- Selector de métricas -->
           <div class="predictions-metrics-selector">
             <h3 class="metrics-selector-title">

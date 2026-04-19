@@ -13,6 +13,7 @@
   const fmt = F.fmt;
 
   const STORAGE_KEY = "FINA_predictions";
+  const CHARTS_STORAGE_KEY = "FINA_predictions_charts";
 
   const METRICS_CONFIG = {
     target_date: { label: "Fecha destino", type: "date" },
@@ -26,6 +27,15 @@
     error_pct: { label: "Error (%)", type: "number" },
   };
 
+  const CHARTS_CONFIG = {
+    price: { label: "Gráfico de precios", id: "pred-price-chart" },
+    volume: { label: "Volumen", id: "pred-volume-chart" },
+    rsi: { label: "RSI (Momentum)", id: "pred-rsi-chart" },
+    macd: { label: "MACD (Señal)", id: "pred-macd-chart" },
+    bollinger: { label: "Bollinger Bands", id: "pred-bb-chart" },
+    metrics: { label: "Métricas calculadas", id: "pred-metrics-card" },
+  };
+
   /* ─── Load predictions from localStorage ─── */
   const loadPredictions = () => {
     try {
@@ -37,12 +47,32 @@
     }
   };
 
+  /* ─── Load charts selection from localStorage ─── */
+  const loadChartsSelection = () => {
+    try {
+      const data = localStorage.getItem(CHARTS_STORAGE_KEY);
+      state.predictionsVisibleCharts = data ? JSON.parse(data) : ["metrics"];
+    } catch (e) {
+      console.error("Error loading charts selection:", e);
+      state.predictionsVisibleCharts = ["metrics"];
+    }
+  };
+
   /* ─── Save predictions to localStorage ─── */
   const savePredictions = () => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state.predictions));
     } catch (e) {
       console.error("Error saving predictions:", e);
+    }
+  };
+
+  /* ─── Save charts selection to localStorage ─── */
+  const saveChartsSelection = () => {
+    try {
+      localStorage.setItem(CHARTS_STORAGE_KEY, JSON.stringify(state.predictionsVisibleCharts));
+    } catch (e) {
+      console.error("Error saving charts selection:", e);
     }
   };
 
@@ -111,6 +141,79 @@
     return badges[status] || '<span class="status-badge">—</span>';
   };
 
+  /* ─── Render metrics card ─── */
+  const renderMetricsCard = () => {
+    if (state.predictions.length === 0) {
+      return '<div class="pred-metrics-empty">Sin predicciones para mostrar</div>';
+    }
+
+    const total = state.predictions.length;
+    const pending = state.predictions.filter((p) => p.status === "pending").length;
+    const hits = state.predictions.filter((p) => p.status === "hit").length;
+    const misses = state.predictions.filter((p) => p.status === "miss").length;
+
+    const avgAccuracy = state.predictions
+      .filter((p) => p.accuracy !== null)
+      .reduce((sum, p) => sum + parseFloat(p.accuracy), 0) / state.predictions.filter((p) => p.accuracy !== null).length || 0;
+
+    const avgConfidence = state.predictions.reduce((sum, p) => sum + p.confidence, 0) / total;
+
+    return `
+      <div class="pred-metrics-card">
+        <div class="pred-metrics-row">
+          <div class="pred-metric-item">
+            <div class="pred-metric-label">Total</div>
+            <div class="pred-metric-value">${total}</div>
+          </div>
+          <div class="pred-metric-item">
+            <div class="pred-metric-label">🕐 Pendientes</div>
+            <div class="pred-metric-value">${pending}</div>
+          </div>
+          <div class="pred-metric-item">
+            <div class="pred-metric-label">✓ Correctos</div>
+            <div class="pred-metric-value" style="color: #006d4a;">${hits}</div>
+          </div>
+          <div class="pred-metric-item">
+            <div class="pred-metric-label">✗ Incorrectos</div>
+            <div class="pred-metric-value" style="color: #ba1b24;">${misses}</div>
+          </div>
+        </div>
+        <div class="pred-metrics-row">
+          <div class="pred-metric-item">
+            <div class="pred-metric-label">Precisión promedio</div>
+            <div class="pred-metric-value">${fmt(avgAccuracy, 1)}%</div>
+          </div>
+          <div class="pred-metric-item">
+            <div class="pred-metric-label">Confianza promedio</div>
+            <div class="pred-metric-value">${fmt(avgConfidence, 1)}%</div>
+          </div>
+        </div>
+      </div>
+    `;
+  };
+
+  /* ─── Render charts container ─── */
+  const renderChartsContainer = () => {
+    if (state.predictionsVisibleCharts.length === 0) {
+      hide($.chartsContainer);
+      return;
+    }
+
+    show($.chartsContainer);
+    $.chartsGrid.innerHTML = state.predictionsVisibleCharts
+      .map((chartKey) => {
+        const config = CHARTS_CONFIG[chartKey];
+        if (!config) return "";
+
+        if (chartKey === "metrics") {
+          return `<div class="pred-chart-slot" id="${config.id}">${renderMetricsCard()}</div>`;
+        }
+
+        return `<div class="pred-chart-slot"><canvas id="${config.id}"></canvas></div>`;
+      })
+      .join("");
+  };
+
   /* ─── Render predictions table ─── */
   const renderPredictionsTable = () => {
     const visible = state.predictionsVisibleMetrics;
@@ -167,6 +270,17 @@
     renderPredictionsTable();
   };
 
+  /* ─── Update visible charts ─── */
+  const updateVisibleCharts = () => {
+    const checks = $.chartsSelectBody.querySelectorAll('input[type="checkbox"]');
+    state.predictionsVisibleCharts = [];
+    checks.forEach((cb) => {
+      if (cb.checked) state.predictionsVisibleCharts.push(cb.value);
+    });
+    saveChartsSelection();
+    renderChartsContainer();
+  };
+
   /* ─── Export to CSV ─── */
   const exportCSV = () => {
     if (state.predictions.length === 0) {
@@ -218,6 +332,22 @@
       $.predForm.reset();
       $.predConfidence.value = "50";
       renderPredictionsTable();
+      renderChartsContainer();
+    });
+  };
+
+  /* ─── Setup charts selector ─── */
+  const setupChartsSelector = () => {
+    $.chartsSelectToggle.addEventListener("click", () => {
+      const isOpen = !$.chartsSelectBody.classList.contains("hidden");
+      if (isOpen) hide($.chartsSelectBody);
+      else show($.chartsSelectBody);
+
+      $.chartsSelectToggle.classList.toggle("open");
+    });
+
+    $.chartsSelectBody.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+      cb.addEventListener("change", updateVisibleCharts);
     });
   };
 
@@ -228,7 +358,6 @@
       if (isOpen) hide($.metricsSelectBody);
       else show($.metricsSelectBody);
 
-      // Toggle chevron
       $.metricsSelectToggle.classList.toggle("open");
     });
 
@@ -246,6 +375,7 @@
         if (confirm("¿Eliminar predicción?")) {
           deletePrediction(id);
           renderPredictionsTable();
+          renderChartsContainer();
         }
       }
     });
@@ -259,6 +389,15 @@
   /* ─── Load panel ─── */
   const loadPredictionsPanel = () => {
     loadPredictions();
+    loadChartsSelection();
+
+    // Restore chart selection checkboxes
+    const chartsChecks = $.chartsSelectBody.querySelectorAll('input[type="checkbox"]');
+    chartsChecks.forEach((cb) => {
+      cb.checked = state.predictionsVisibleCharts.includes(cb.value);
+    });
+
+    renderChartsContainer();
     renderPredictionsTable();
     show($.predictionsContent);
   };
@@ -266,6 +405,7 @@
   /* ─── Initialize ─── */
   const init = () => {
     setupFormHandler();
+    setupChartsSelector();
     setupMetricsSelector();
     setupDeleteHandlers();
     setupExportHandler();
