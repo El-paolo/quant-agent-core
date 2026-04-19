@@ -610,6 +610,43 @@ legend { display: block; }
   margin-top: var(--s-3);
 }
 
+.empty-instruction {
+  margin: var(--s-4) 0;
+  padding: var(--s-3);
+  background: var(--surface-container);
+  border-left: 3px solid var(--primary);
+  border-radius: 4px;
+}
+
+.empty-instruction-step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  margin: 0 0 var(--s-2) 0;
+  font-size: 0.9rem;
+  color: var(--on-surface);
+  line-height: 1.5;
+}
+
+.empty-instruction-step:last-child {
+  margin-bottom: 0;
+}
+
+.empty-step-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  background: var(--primary);
+  color: white;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
 /* --- 8. Loading State --- */
 @keyframes shimmer {
   to { background-position: -200% center; }
@@ -2397,14 +2434,28 @@ legend { display: block; }
    ============================================================ */
 
 .rail-section-label {
-  padding: 0 var(--s-3);
+  padding: var(--s-2) var(--s-3);
   margin-top: var(--s-3);
-  margin-bottom: var(--s-1);
+  margin-bottom: var(--s-2);
   font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--outline);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-top: 1px solid var(--outline-variant);
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+.rail-section-hint {
+  font-size: 0.5rem;
+  font-weight: 500;
+  text-transform: lowercase;
+  letter-spacing: 0;
+  color: var(--outline-variant);
+  margin-left: auto;
 }
 
 .rail-step {
@@ -2666,6 +2717,44 @@ legend { display: block; }
   padding: var(--s-8) var(--s-4);
   text-align: center;
   color: var(--on-surface-variant);
+}
+
+.pf-loading-steps {
+  margin-top: var(--s-4);
+  padding: var(--s-3);
+  background: var(--surface-container);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  max-width: 300px;
+}
+
+.pf-loading-step {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: 0.85rem;
+  color: var(--on-surface-variant);
+}
+
+.pf-step-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.pf-loading-hint {
+  margin-top: var(--s-3);
+  font-size: 0.75rem;
+  color: var(--on-surface-variant);
+  font-style: italic;
 }
 
 /* ============================================================

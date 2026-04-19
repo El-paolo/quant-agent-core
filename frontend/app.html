@@ -120,7 +120,10 @@
         </button>
 
         <div class="rail-divider"></div>
-        <div class="rail-section-label">Auxiliar</div>
+        <div class="rail-section-label">
+          <span>REFERENCIAS</span>
+          <span class="rail-section-hint">consultas</span>
+        </div>
 
         <button class="rail-link" data-panel="technicals">
           <svg class="rail-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -218,7 +221,22 @@
             <circle cx="16" cy="18" r="3"/>
           </svg>
         </div>
-        <p class="empty-title">Selecciona un activo para analizar</p>
+        <p class="empty-title">Comienza tu análisis</p>
+        <div class="empty-instruction">
+          <p class="empty-instruction-step">
+            <span class="empty-step-num">1</span>
+            <span>Escribe un ticker en la barra superior (ej: <strong>AAPL</strong>, <strong>MSFT</strong>)</span>
+          </p>
+          <p class="empty-instruction-step">
+            <span class="empty-step-num">2</span>
+            <span>Click en <strong>Analizar</strong></span>
+          </p>
+          <p class="empty-instruction-step">
+            <span class="empty-step-num">3</span>
+            <span>Sigue los 6 pasos: Exploración → Modelos → Backtest → Portfolio → Predicciones</span>
+          </p>
+        </div>
+        <p class="empty-hint">o elige un ticker popular:</p>
         <div class="empty-chips">
           <button class="empty-chip" data-ticker="AAPL">AAPL</button>
           <button class="empty-chip" data-ticker="MSFT">MSFT</button>
@@ -227,7 +245,6 @@
           <button class="empty-chip" data-ticker="BTC-USD">BTC-USD</button>
           <button class="empty-chip" data-ticker="AMZN">AMZN</button>
         </div>
-        <p class="empty-hint">o escribe un ticker en la barra superior</p>
       </div>
 
       <!-- LOADING STATE -->
@@ -967,6 +984,21 @@
         <div class="panel-loading hidden" id="pf-loading">
           <div class="spinner"></div>
           <p>Ejecutando backtest multi-activo...</p>
+          <div class="pf-loading-steps">
+            <div class="pf-loading-step">
+              <span class="pf-step-check">✓</span>
+              <span>Validando tickers</span>
+            </div>
+            <div class="pf-loading-step">
+              <span class="pf-step-check">⋯</span>
+              <span>Descargando datos</span>
+            </div>
+            <div class="pf-loading-step">
+              <span class="pf-step-check">⋯</span>
+              <span>Entrenando modelos & simulando</span>
+            </div>
+          </div>
+          <p class="pf-loading-hint">Esto puede tomar 10-30 segundos según la cantidad de datos</p>
         </div>
         <div class="panel-error hidden" id="pf-error">
           <p id="pf-error-msg" class="error-text"></p>
