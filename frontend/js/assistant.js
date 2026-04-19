@@ -89,6 +89,24 @@
       if (f.market_cap != null) ctx.fund_market_cap = f.market_cap >= 1e9 ? `$${(f.market_cap / 1e9).toFixed(1)}B` : `$${(f.market_cap / 1e6).toFixed(0)}M`;
     }
 
+    if (state.predictions && state.predictions.length > 0) {
+      const total = state.predictions.length;
+      const pending = state.predictions.filter((p) => p.status === "pending").length;
+      const hits = state.predictions.filter((p) => p.status === "hit").length;
+      const misses = state.predictions.filter((p) => p.status === "miss").length;
+      const avgAccuracy = state.predictions
+        .filter((p) => p.accuracy !== null)
+        .reduce((sum, p) => sum + parseFloat(p.accuracy), 0) / state.predictions.filter((p) => p.accuracy !== null).length || 0;
+      const avgConfidence = state.predictions.reduce((sum, p) => sum + p.confidence, 0) / total;
+
+      ctx.predictions_total = total;
+      ctx.predictions_pending = pending;
+      ctx.predictions_hits = hits;
+      ctx.predictions_misses = misses;
+      ctx.predictions_avg_accuracy = F.fmt(avgAccuracy, 1);
+      ctx.predictions_avg_confidence = F.fmt(avgConfidence, 1);
+    }
+
     return Object.keys(ctx).length > 0 ? ctx : null;
   };
 

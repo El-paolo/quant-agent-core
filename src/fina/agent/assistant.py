@@ -88,6 +88,23 @@ Todos los modelos usan split temporal 80/20. GARCH evalúa MAE vs vol realizada.
 ARIMA usa walk-forward 1-step. HMM compara LL/n entre train y test. \
 El backtest usa split temporal por fecha (no ratio) para evitar look-ahead bias.
 
+## Panel de Predicciones (Step 6)
+
+FINA incluye un **panel de predicciones** donde el usuario puede:
+- **Registrar predicciones**: ticker, fecha destino, precio predicho, confianza (0-100%).
+- **Tablero personalizado**: selecciona qué gráficas ver (precio, volumen, RSI, MACD, Bollinger, o métricas calculadas).
+- **Métricas automáticas**: al validar predicciones, se calculan MAE, precisión (%), y estado (🕐 pendiente, ✓ correcto, ✗ incorrecto).
+- **Dashboard dinámico**: tarjeta de métricas resumen (total, pendientes, hits, misses, precisión promedio, confianza promedio).
+- **Persistencia**: las predicciones y preferencia de gráficas se guardan en localStorage.
+- **Exportación CSV**: descarga las predicciones con todos los datos.
+
+## Sistema de pins mejorado
+
+En todos los gráficos (precio, vol, RSI, MACD, etc.):
+- **1 click**: agrega un pin (si no hay pines aún).
+- **2 clicks rápidos** en el mismo punto: elimina ese pin (o limpia todos si hay pines pero clickeas en área vacía).
+- Los pins se sincronizan entre gráficas del mismo grupo (ej: price, vol, bb, volume comparten pins).
+
 ## Reglas
 
 - Si no tienes contexto numérico, responde sobre el software en general.
@@ -162,6 +179,18 @@ def _build_context_block(context: dict | None) -> str:
         val = context.get(key)
         if val is not None:
             lines.append(f"{label}: {val}")
+
+    # Predictions context
+    if context.get("predictions_total") is not None:
+        total = context["predictions_total"]
+        pending = context.get("predictions_pending", 0)
+        hits = context.get("predictions_hits", 0)
+        misses = context.get("predictions_misses", 0)
+        lines.append(f"Predicciones: {total} total ({pending} pendientes, {hits} correctas, {misses} incorrectas)")
+        if context.get("predictions_avg_accuracy") is not None:
+            lines.append(f"Precisión promedio: {context['predictions_avg_accuracy']}%")
+        if context.get("predictions_avg_confidence") is not None:
+            lines.append(f"Confianza promedio: {context['predictions_avg_confidence']}%")
 
     return "\n".join(lines) if lines else "No hay análisis cargado actualmente."
 
