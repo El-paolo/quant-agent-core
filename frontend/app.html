@@ -169,6 +169,39 @@
             <label class="param-check"><input type="checkbox" value="bollinger" checked /><span>Bollinger</span></label>
             <label class="param-check"><input type="checkbox" value="beta" checked /><span>Beta</span></label>
           </fieldset>
+
+          <fieldset class="params-group params-advanced">
+            <legend class="params-legend">
+              <button type="button" class="params-adv-toggle" id="params-adv-toggle">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="4 6 8 10 12 6"/></svg>
+              </button>
+              Parámetros avanzados
+            </legend>
+            <div class="params-adv-body hidden" id="params-adv-body">
+              <div class="param-input-group">
+                <label class="param-input-label">
+                  <span>Tasa libre de riesgo (%)</span>
+                  <input type="number" id="param-rf-rate" value="5.0" step="0.1" min="0" max="20" />
+                </label>
+                <p class="param-help">Utilizado en cálculo de Sharpe/Sortino. Default: 5%</p>
+              </div>
+              <div class="param-input-group">
+                <label class="param-input-label">
+                  <span>MAR - Retorno mínimo aceptable (%)</span>
+                  <input type="number" id="param-mar" value="0.0" step="0.1" min="-10" max="20" />
+                </label>
+                <p class="param-help">Utilizado en Sortino Ratio. Default: 0% (sin retorno mínimo)</p>
+              </div>
+              <div class="param-input-group">
+                <label class="param-input-label">
+                  <span>Ventana vol rolling (días)</span>
+                  <input type="number" id="param-vol-window" value="21" step="1" min="5" max="252" />
+                </label>
+                <p class="param-help">Ventana móvil para volatilidad. Default: 21 (1 mes trading)</p>
+              </div>
+              <button type="button" id="param-reset-btn" class="param-reset">Restaurar defaults</button>
+            </div>
+          </fieldset>
         </div>
       </div>
     </aside>
@@ -252,12 +285,36 @@
           <div class="warnings-inner" id="warnings-inner"></div>
         </div>
 
-        <!-- Next step CTA -->
-        <div class="pipeline-next" id="next-step-overview">
-          <button class="pipeline-next-btn" data-goto="metrics" type="button">
-            <span>Siguiente: Exploración</span>
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="6 3 11 8 6 13"/></svg>
-          </button>
+        <!-- Next steps guidance -->
+        <div class="next-steps-section">
+          <h3 class="next-steps-title">Próximos pasos</h3>
+          <p class="next-steps-hint">Tu análisis está listo. Continúa el flujo:</p>
+          <div class="next-steps-grid">
+            <button class="next-step-card" data-goto="metrics" type="button">
+              <span class="step-num">2</span>
+              <span class="step-name">Exploración</span>
+              <span class="step-desc">Análisis técnico</span>
+              <svg class="step-arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 3 11 8 6 13"/></svg>
+            </button>
+            <button class="next-step-card" data-goto="models" type="button">
+              <span class="step-num">3</span>
+              <span class="step-name">Modelos</span>
+              <span class="step-desc">ARIMA, HMM, GARCH</span>
+              <svg class="step-arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 3 11 8 6 13"/></svg>
+            </button>
+            <button class="next-step-card" data-goto="backtest" type="button">
+              <span class="step-num">4</span>
+              <span class="step-name">Backtest</span>
+              <span class="step-desc">Valida tu estrategia</span>
+              <svg class="step-arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 3 11 8 6 13"/></svg>
+            </button>
+            <button class="next-step-card" data-goto="portfolio" type="button">
+              <span class="step-num">5</span>
+              <span class="step-name">Portfolio</span>
+              <span class="step-desc">Multi-activo</span>
+              <svg class="step-arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 3 11 8 6 13"/></svg>
+            </button>
+          </div>
         </div>
 
       </div>
@@ -538,7 +595,10 @@
             <div class="regime-badge-inner">
               <span class="regime-dot" id="regime-dot"></span>
               <div class="regime-info">
-                <span class="regime-label" id="regime-label"></span>
+                <div class="regime-header">
+                  <span class="regime-label" id="regime-label"></span>
+                  <svg class="regime-help" id="regime-help-icon" title="Low Vol: Mercado estable. Aumenta exposición, menor stop loss. Mid Vol: Normal. Mantén posición. High Vol: Riesgo alto. Reduce tamaño, aumenta stop loss, espera consolidación.">?</svg>
+                </div>
                 <span class="regime-detail" id="regime-detail"></span>
               </div>
             </div>
@@ -702,9 +762,21 @@
 
           <div class="bt-options-row">
             <div class="bt-checkboxes">
-              <label class="bt-check"><input type="checkbox" id="bt-use-arima" checked /> ARIMA</label>
-              <label class="bt-check"><input type="checkbox" id="bt-use-hmm" checked /> HMM</label>
-              <label class="bt-check"><input type="checkbox" id="bt-use-garch" checked /> GARCH</label>
+              <label class="bt-check">
+                <input type="checkbox" id="bt-use-arima" checked />
+                <span>ARIMA</span>
+                <svg class="model-help" title="Predice dirección (sube/baja). Detecta tendencias en retornos. Puede ser ARIMA(0,0,0) si retornos son aleatorios.">?</svg>
+              </label>
+              <label class="bt-check">
+                <input type="checkbox" id="bt-use-hmm" checked />
+                <span>HMM</span>
+                <svg class="model-help" title="Detecta regímenes de mercado (baja vol / normal / alta vol). Ajusta tamaño de posición según volatilidad.">?</svg>
+              </label>
+              <label class="bt-check">
+                <input type="checkbox" id="bt-use-garch" checked />
+                <span>GARCH</span>
+                <svg class="model-help" title="Modela volatilidad condicional. Predice cuándo el mercado será más o menos volátil. Escala el riesgo.">?</svg>
+              </label>
             </div>
             <div class="bt-capital-field">
               <label class="bt-label" for="bt-capital">Capital</label>
@@ -788,11 +860,32 @@
 
             <div class="hidden" id="bt-mc-results">
               <div class="bt-section">
-                <h4 class="bt-mc-chart-title">Fan chart — distribución de equity</h4>
+                <h4 class="bt-mc-chart-title">Fan chart — distribución de equity
+                  <svg class="mc-help" title="Líneas = percentiles de simulación. P5 (pesimista) a P95 (optimista). Si la línea está abajo, 95% de casos pierden dinero. Si está arriba, tu estrategia es robusta.">?</svg>
+                </h4>
                 <div class="chart-wrap"><canvas id="chart-bt-mc-fan"></canvas></div>
               </div>
 
               <div class="bt-mc-risk-row" id="bt-mc-risk-row"></div>
+
+              <!-- MC Help Card -->
+              <div class="mc-help-card">
+                <h4 class="mc-help-title">📊 Cómo interpretar</h4>
+                <div class="mc-help-grid">
+                  <div class="mc-help-item">
+                    <span class="mc-help-label">VaR 95%</span>
+                    <span class="mc-help-desc">Pérdida máxima esperada en 95% de los casos. Si es -5%, tu pérdida no excederá eso en 95/100 simulaciones.</span>
+                  </div>
+                  <div class="mc-help-item">
+                    <span class="mc-help-label">Prob. Ganancia</span>
+                    <span class="mc-help-desc">% de simulaciones que ganaron dinero. >50% = estrategia con positive edge. >70% = muy sólida.</span>
+                  </div>
+                  <div class="mc-help-item">
+                    <span class="mc-help-label">P5 a P95</span>
+                    <span class="mc-help-desc">Rango de resultados. Rango estrecho = predecible. Rango amplio = alta incertidumbre.</span>
+                  </div>
+                </div>
+              </div>
 
               <button class="bt-advanced-toggle" id="bt-mc-advanced-toggle" type="button">
                 <svg class="bt-adv-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 6 8 10 12 6"/></svg>
@@ -1300,6 +1393,7 @@
   </div>
 
   <script src="/static/js/state.js"></script>
+  <script src="/static/js/parameters.js"></script>
   <script src="/static/js/charts.js"></script>
   <script src="/static/js/api.js"></script>
   <script src="/static/js/panels.js"></script>

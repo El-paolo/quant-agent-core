@@ -87,11 +87,18 @@
     predictions: [],
     predictionsVisibleCharts: ["metrics"],
     predictionsVisibleMetrics: ["target_date", "predicted_price", "real_price", "confidence", "mae", "accuracy", "status"],
+    /* Advanced parameters */
+    params: {
+      rf_rate: 5.0,          // risk-free rate (%)
+      mar: 0.0,              // minimum acceptable return (%)
+      vol_window: 21,        // rolling vol window (days)
+    },
     /* Progressive disclosure toggles */
     btAdvancedOpen: false,
     btMcAdvancedOpen: false,
     predChartsOpen: false,
     predMetricsOpen: false,
+    paramsAdvOpen: false,
     /* Assistant */
     chatMessages: [],
     chatOpen: false,
