@@ -14,7 +14,7 @@ import pandas as pd
 
 from fina.core.exceptions import BacktestError, FetcherError
 from fina.data.cleaner import clean_prices
-from fina.data.fetcher import fetch_close_prices
+from fina.data.fetcher import fetch_close_prices, fetch_volume
 from fina.metrics.returns import compute_returns
 
 from fina.backtest.metrics import compute_backtest_metrics
@@ -101,6 +101,12 @@ def run_backtest(
     # ── Fetch & prepare data ──
     prices = fetch_close_prices(ticker, start=train_start, end=test_end)
     prices = clean_prices(prices)
+
+    # Fetch volume data for visualization
+    try:
+      volume = fetch_volume(ticker, start=train_start, end=test_end)
+    except Exception:
+      volume = None  # Volume is optional, don't fail if unavailable
 
     if len(prices) < 10:
         raise BacktestError(f"Insufficient price data: {len(prices)} points")
