@@ -286,6 +286,10 @@ fina/
 - Los outliers en precios se detectan pero **no se eliminan** automáticamente — se reportan como advertencias en la respuesta para que el caller decida.
 - El ratio de Sortino retorna `null` cuando no hay retornos negativos en el período (mercados alcistas), esto es comportamiento esperado.
 
-## License
+## Licencia
 
-All rights reserved.
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+
+Este proyecto está bajo la licencia **CC BY-NC-SA 4.0** - ver el archivo [LICENSE](LICENSE) para más detalles.
+
+**⚠️ Uso comercial prohibido** - Para licencias comerciales, contacta a [paolocordovacontacto@gmail.com.com]
